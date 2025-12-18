@@ -125,23 +125,56 @@
             const getMonthlyTotals = () => {
                 const { start, end } = getFinancialMonthRange(currentMonth);
                 const monthKey = getMonthKey(currentMonth);
+                const today = new Date();
+                
                 const monthlyTransactions = transactions.filter(t => { const tDate = new Date(t.date); return tDate >= start && tDate <= end; });
                 const income = monthlyTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + parseFloat(t.amount), 0);
                 const expenses = monthlyTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + parseFloat(t.amount), 0);
                 
                 // Calculate paid recurring payments (manual OR auto if due date passed)
-                const today = new Date();
-                const currentDay = today.getDate();
                 const paidRecurringTotal = recurringPayments.filter(p => {
                     const isManuallyPaid = paidPayments[`${monthKey}-${p.id}`];
-                    const isAutoPaid = p.auto && currentDay >= p.dueDay;
-                    return isManuallyPaid || isAutoPaid;
+                    if (isManuallyPaid) return true;
+                    
+                    // Check if auto-pay due date has passed
+                    if (p.auto) {
+                        let paymentDate;
+                        if (p.dueDay >= 28) {
+                            paymentDate = new Date(start.getFullYear(), start.getMonth() - 1, p.dueDay);
+                        } else {
+                            paymentDate = new Date(start.getFullYear(), start.getMonth(), p.dueDay);
+                        }
+                        return today >= paymentDate;
+                    }
+                    return false;
                 }).reduce((sum, p) => sum + parseFloat(p.amount), 0);
                 
                 return { income, expenses: expenses + paidRecurringTotal, net: income - (expenses + paidRecurringTotal) };
             };
 
             const getTotalDebt = () => debts.reduce((sum, d) => sum + parseFloat(d.currentBalance), 0);
+
+            const getUnpaidRecurring = () => {
+                const monthKey = getMonthKey(currentMonth);
+                const today = new Date();
+                const { start } = getFinancialMonthRange(currentMonth);
+                
+                return recurringPayments.filter(p => {
+                    const isManuallyPaid = paidPayments[`${monthKey}-${p.id}`];
+                    if (isManuallyPaid) return false;
+                    
+                    if (p.auto) {
+                        let paymentDate;
+                        if (p.dueDay >= 28) {
+                            paymentDate = new Date(start.getFullYear(), start.getMonth() - 1, p.dueDay);
+                        } else {
+                            paymentDate = new Date(start.getFullYear(), start.getMonth(), p.dueDay);
+                        }
+                        return today < paymentDate;
+                    }
+                    return true;
+                }).reduce((sum, p) => sum + parseFloat(p.amount), 0);
+            };
 
             const exportData = () => {
                 const data = { transactions, recurringPayments, debts, paidPayments, exportDate: new Date().toISOString() };
@@ -176,11 +209,20 @@
                                 // Auto-mark auto-pay items as paid ONLY if due date has passed
                                 const monthKey = getMonthKey(currentMonth);
                                 const today = new Date();
-                                const currentDay = today.getDate();
+                                const { start } = getFinancialMonthRange(currentMonth);
                                 const newPaidPayments = {...(data.paidPayments || {})};
+                                
                                 validPayments.forEach(p => {
-                                    if (p.auto && currentDay >= p.dueDay) {
-                                        newPaidPayments[`${monthKey}-${p.id}`] = true;
+                                    if (p.auto) {
+                                        let paymentDate;
+                                        if (p.dueDay >= 28) {
+                                            paymentDate = new Date(start.getFullYear(), start.getMonth() - 1, p.dueDay);
+                                        } else {
+                                            paymentDate = new Date(start.getFullYear(), start.getMonth(), p.dueDay);
+                                        }
+                                        if (today >= paymentDate) {
+                                            newPaidPayments[`${monthKey}-${p.id}`] = true;
+                                        }
                                     }
                                 });
                                 setPaidPayments(newPaidPayments);
@@ -207,6 +249,7 @@
 
             const totals = getMonthlyTotals();
             const totalDebt = getTotalDebt();
+            const unpaidRecurring = getUnpaidRecurring();
 
             return (
                 <div className="app-container">
@@ -223,7 +266,7 @@
                         <button className={`tab-button ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>⚙️ Settings</button>
                     </div>
                     <div className="tab-content">
-                        {activeTab === 'dashboard' && <DashboardTab totals={totals} totalDebt={totalDebt} currentMonth={currentMonth} transactions={transactions} recurringPayments={recurringPayments} debts={debts} />}
+                        {activeTab === 'dashboard' && <DashboardTab totals={totals} totalDebt={totalDebt} unpaidRecurring={unpaidRecurring} currentMonth={currentMonth} transactions={transactions} recurringPayments={recurringPayments} debts={debts} />}
                         {activeTab === 'transactions' && <TransactionsTab transactions={transactions} setTransactions={setTransactions} currentMonth={currentMonth} />}
                         {activeTab === 'recurring' && <RecurringTab recurringPayments={recurringPayments} setRecurringPayments={setRecurringPayments} debts={debts} setDebts={setDebts} transactions={transactions} setTransactions={setTransactions} paidPayments={paidPayments} setPaidPayments={setPaidPayments} currentMonth={currentMonth} />}
                         {activeTab === 'debts' && <DebtsTab debts={debts} setDebts={setDebts} />}
@@ -234,7 +277,7 @@
             );
         }
 
-        function DashboardTab({ totals, totalDebt, currentMonth, transactions, recurringPayments, debts }) {
+        function DashboardTab({ totals, totalDebt, unpaidRecurring, currentMonth, transactions, recurringPayments, debts }) {
             const monthName = currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
             const { start, end } = getFinancialMonthRange(currentMonth);
             const getYearlyTotals = () => {
@@ -255,9 +298,9 @@
                     <p style={{color: '#a0aec0', marginBottom: '20px'}}>Period: {start.toLocaleDateString()} - {end.toLocaleDateString()}</p>
                     <div className="summary-grid">
                         <div className="summary-card"><h3>Total Income</h3><div className="amount">{formatCurrency(totals.income)}</div></div>
-                        <div className="summary-card"><h3>Total Expenses</h3><div className="amount">{formatCurrency(totals.expenses)}</div><div className="subtitle">{recurringPayments.length} recurring payments</div></div>
+                        <div className="summary-card"><h3>Total Expenses</h3><div className="amount">{formatCurrency(totals.expenses)}</div><div className="subtitle">Transactions + paid recurring</div></div>
                         <div className="summary-card"><h3>Net Balance</h3><div className="amount">{formatCurrency(totals.net)}</div><div className="subtitle">{totals.income > 0 ? ((totals.net / totals.income) * 100).toFixed(1) : 0}% of income</div></div>
-                        <div className="summary-card"><h3>Total Debt</h3><div className="amount">{formatCurrency(totalDebt)}</div><div className="subtitle">{debts.length} active debt{debts.length !== 1 ? 's' : ''}</div></div>
+                        <div className="summary-card"><h3>Unpaid Recurring</h3><div className="amount">{formatCurrency(unpaidRecurring)}</div><div className="subtitle">Still due this month</div></div>
                     </div>
                     {debts.length > 0 && (
                         <div className="section">
@@ -428,12 +471,25 @@
             const [formData, setFormData] = useState({ name: '', amount: '', category: '', dueDay: '1', linkedDebt: '', auto: false });
             const monthKey = getMonthKey(currentMonth);
 
-            // Check if auto-pay should be marked as paid (due date has passed)
+            // Check if auto-pay should be marked as paid (due date has passed in financial month)
             const shouldAutoPayBePaid = (payment) => {
                 if (!payment.auto) return false;
                 const today = new Date();
                 const currentDay = today.getDate();
-                return currentDay >= payment.dueDay;
+                const { start } = getFinancialMonthRange(currentMonth);
+                
+                // Create a date for the payment due day in the financial month
+                let paymentDate;
+                if (payment.dueDay >= 28) {
+                    // Days 28-31 are at the START of the financial month (previous calendar month)
+                    paymentDate = new Date(start.getFullYear(), start.getMonth() - 1, payment.dueDay);
+                } else {
+                    // Days 1-27 are in the current calendar month
+                    paymentDate = new Date(start.getFullYear(), start.getMonth(), payment.dueDay);
+                }
+                
+                // Payment is paid if today >= payment date
+                return today >= paymentDate;
             };
 
             const handleSubmit = (e) => { 
@@ -493,6 +549,9 @@
                     </div>
                     <div className="section">
                         <h2>Recurring Payments ({recurringPayments.length})</h2>
+                        <p style={{color: '#a0aec0', marginBottom: '15px', fontSize: '1.1em'}}>
+                            Total Monthly: <strong style={{color: '#667eea'}}>{formatCurrency(recurringPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0))}</strong>
+                        </p>
                         <div className="payment-list">
                             {recurringPayments.length === 0 ? (
                                 <p style={{color: '#a0aec0', textAlign: 'center', padding: '20px'}}>No recurring payments yet.</p>
@@ -557,6 +616,9 @@
                     </div>
                     <div className="section">
                         <h2>Active Debts ({debts.length})</h2>
+                        <p style={{color: '#a0aec0', marginBottom: '15px', fontSize: '1.1em'}}>
+                            Total Debt: <strong style={{color: '#dc3545'}}>{formatCurrency(debts.reduce((sum, d) => sum + parseFloat(d.currentBalance), 0))}</strong>
+                        </p>
                         <div className="debt-list">
                             {debts.length === 0 ? (
                                 <p style={{color: '#a0aec0', textAlign: 'center', padding: '20px'}}>No debts tracked yet.</p>
