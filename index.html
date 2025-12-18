@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.8.1</title>
+    <title>Finance Tracker v1.8.3</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -435,7 +435,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.8.1 | Fix: Date Display + Auto Debt Logging</div>
+                        <div className="version">v1.8.3 | Sort Recurring Payments by Due Day</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -727,14 +727,19 @@
             };
             
             const processPayment = (payment) => {
+                console.log('Processing payment:', payment.name);
+                console.log('Linked debt ID:', payment.linkedDebt);
+                
                 const paymentKey = `${monthKey}-${payment.id}`;
                 const newTransaction = { type: 'expense', amount: payment.amount, description: `${payment.name} (Recurring)`, category: payment.category, date: new Date().toISOString().split('T')[0], id: Date.now() };
                 setTransactions([...transactions, newTransaction]);
                 setPaidPayments({...paidPayments, [paymentKey]: true});
                 
-                if (payment.linkedDebt) { 
+                if (payment.linkedDebt) {
+                    console.log('Payment has linked debt, processing...');
                     setDebts(debts.map(debt => { 
-                        if (debt.id === parseInt(payment.linkedDebt)) { 
+                        if (debt.id === parseInt(payment.linkedDebt)) {
+                            console.log('Found matching debt:', debt.name);
                             const interestRate = parseFloat(debt.interestRate) || 0;
                             const monthlyInterestRate = interestRate / 100 / 12;
                             const interestAccrued = debt.currentBalance * monthlyInterestRate;
@@ -750,6 +755,10 @@
                                 balanceBefore: debt.currentBalance,
                                 balanceAfter: newBalance
                             };
+                            
+                            console.log('Creating log entry:', logEntry);
+                            console.log('Transaction log length before:', transactionLog.length);
+                            console.log('Transaction log length after:', transactionLog.length + 1);
                             
                             return { 
                                 ...debt, 
@@ -800,7 +809,7 @@
                             {recurringPayments.length === 0 ? (
                                 <p style={{color: '#a0aec0', textAlign: 'center', padding: '20px'}}>No recurring payments yet.</p>
                             ) : (
-                                recurringPayments.map((payment) => {
+                                recurringPayments.sort((a, b) => a.dueDay - b.dueDay).map((payment) => {
                                     const linkedDebt = payment.linkedDebt ? debts.find(d => d.id === parseInt(payment.linkedDebt)) : null;
                                     const isManuallyPaid = paidPayments[`${monthKey}-${payment.id}`];
                                     const isAutoPaid = payment.auto && shouldAutoPayBePaid(payment);
