@@ -789,13 +789,15 @@
                     return t.type === 'expense' && tDate >= start && tDate <= end;
                 }).forEach(t => {
                     const category = t.category || 'Uncategorized';
-                    categoryTotals[category] = (categoryTotals[category] || 0) + parseFloat(t.amount);
+                    const amount = parseFloat(t.amount) || 0;
+                    categoryTotals[category] = (categoryTotals[category] || 0) + amount;
                 });
 
                 // Add recurring payment expenses
                 recurringPayments.forEach(p => {
                     const category = p.category || 'Recurring';
-                    categoryTotals[category] = (categoryTotals[category] || 0) + parseFloat(p.amount);
+                    const amount = parseFloat(p.amount) || 0;
+                    categoryTotals[category] = (categoryTotals[category] || 0) + amount;
                 });
 
                 return Object.entries(categoryTotals)
@@ -953,15 +955,18 @@
                             <h2>Debt Overview</h2>
                             <div className="debt-overview-grid">
                                 {debts.map(debt => {
-                                    const progressPercent = debt.originalBalance > 0 
-                                        ? ((debt.originalBalance - debt.currentBalance) / debt.originalBalance * 100)
+                                    const originalBalance = parseFloat(debt.originalBalance) || 0;
+                                    const currentBalance = parseFloat(debt.currentBalance) || 0;
+                                    const interestRate = parseFloat(debt.interestRate) || 0;
+                                    const progressPercent = originalBalance > 0 
+                                        ? ((originalBalance - currentBalance) / originalBalance * 100)
                                         : 0;
                                     return (
                                         <div key={debt.id} className="debt-mini-card">
                                             <h4>{debt.name}</h4>
-                                            <div className="debt-amount">{formatCurrency(debt.currentBalance)}</div>
+                                            <div className="debt-amount">{formatCurrency(currentBalance)}</div>
                                             <div className="debt-info">{debt.category}</div>
-                                            <div className="debt-info">{debt.interestRate.toFixed(2)}% APR</div>
+                                            <div className="debt-info">{interestRate.toFixed(2)}% APR</div>
                                             <div className="progress-bar" style={{marginTop: '8px'}}>
                                                 <div 
                                                     className="progress-fill" 
@@ -987,20 +992,23 @@
                                     No upcoming payments this month
                                 </p>
                             ) : (
-                                upcomingPayments.map(payment => (
-                                    <div key={payment.id} className="upcoming-payment-item">
-                                        <div className="payment-date">
-                                            Day {payment.dueDay}
+                                upcomingPayments.map(payment => {
+                                    const amount = parseFloat(payment.amount) || 0;
+                                    return (
+                                        <div key={payment.id} className="upcoming-payment-item">
+                                            <div className="payment-date">
+                                                Day {payment.dueDay}
+                                            </div>
+                                            <div className="payment-info">
+                                                <h4>{payment.name}</h4>
+                                                <p>{payment.category}</p>
+                                            </div>
+                                            <div className="payment-amount">
+                                                {formatCurrency(amount)}
+                                            </div>
                                         </div>
-                                        <div className="payment-info">
-                                            <h4>{payment.name}</h4>
-                                            <p>{payment.category}</p>
-                                        </div>
-                                        <div className="payment-amount">
-                                            {formatCurrency(payment.amount)}
-                                        </div>
-                                    </div>
-                                ))
+                                    );
+                                })
                             )}
                         </div>
                     </div>
