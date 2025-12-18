@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.7.3</title>
+    <title>Finance Tracker v1.7.4</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -92,7 +92,7 @@
 <body>
     <div id="root"></div>
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useRef } = React;
         const formatCurrency = (amount) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
         const getCurrentFinancialMonth = () => { const today = new Date(); const day = today.getDate(); const month = today.getMonth(); const year = today.getFullYear(); if (day >= 28) { return new Date(year, month + 1, 1); } else { return new Date(year, month, 1); } };
         const getFinancialMonthRange = (date) => { const month = date.getMonth(); const year = date.getFullYear(); const start = new Date(year, month - 1, 28); const end = new Date(year, month, 27, 23, 59, 59); return { start, end }; };
@@ -105,6 +105,7 @@
             const [debts, setDebts] = useState([]);
             const [paidPayments, setPaidPayments] = useState({});
             const [currentMonth, setCurrentMonth] = useState(getCurrentFinancialMonth());
+            const hasAutoProcessed = useRef(false);
 
             useEffect(() => {
                 const savedTransactions = localStorage.getItem('transactions');
@@ -124,9 +125,17 @@
 
             // Auto-process recurring payments when their due date passes (only on mount and month change)
             useEffect(() => {
-                if (recurringPayments.length === 0 || Object.keys(paidPayments).length === 0) return;
+                if (recurringPayments.length === 0 || Object.keys(paidPayments).length === 0) {
+                    hasAutoProcessed.current = false;
+                    return;
+                }
                 
                 const monthKey = getMonthKey(currentMonth);
+                
+                // Prevent duplicate processing in the same month
+                if (hasAutoProcessed.current === monthKey) return;
+                hasAutoProcessed.current = monthKey;
+                
                 const today = new Date();
                 const { start } = getFinancialMonthRange(currentMonth);
                 
@@ -312,7 +321,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.7.3 | Fix: Import Preserves Manual Paid Status</div>
+                        <div className="version">v1.7.4 | Fix: Prevent Duplicate Auto-Transactions</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
