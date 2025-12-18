@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.8.3</title>
+    <title>Finance Tracker v1.8.4</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -435,7 +435,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.8.3 | Sort Recurring Payments by Due Day</div>
+                        <div className="version">v1.8.4 | Custom Category Option in Add Transaction</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -532,12 +532,21 @@
             const [expandedMonths, setExpandedMonths] = useState({});
             const [selectedCategory, setSelectedCategory] = useState('All');
             const [editingTransaction, setEditingTransaction] = useState(null);
+            const [showCustomCategory, setShowCustomCategory] = useState(false);
+            const [customCategory, setCustomCategory] = useState('');
 
             const handleSubmit = (e) => {
                 e.preventDefault();
                 if (formData.amount && formData.description) {
-                    setTransactions([...transactions, { ...formData, amount: parseFloat(formData.amount), id: Date.now() }]);
+                    const finalCategory = showCustomCategory ? customCategory : formData.category;
+                    if (!finalCategory) {
+                        alert('Please select or enter a category');
+                        return;
+                    }
+                    setTransactions([...transactions, { ...formData, category: finalCategory, amount: parseFloat(formData.amount), id: Date.now() }]);
                     setFormData({ type: 'expense', amount: '', description: '', category: '', date: new Date().toISOString().split('T')[0] });
+                    setShowCustomCategory(false);
+                    setCustomCategory('');
                 }
             };
 
@@ -589,13 +598,39 @@
                                 <div className="form-group"><label>Description</label><input type="text" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} placeholder="e.g., Grocery shopping" required /></div>
                                 <div className="form-group">
                                     <label>Category</label>
-                                    <select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} required>
+                                    <select 
+                                        value={showCustomCategory ? 'custom' : formData.category} 
+                                        onChange={(e) => {
+                                            if (e.target.value === 'custom') {
+                                                setShowCustomCategory(true);
+                                                setFormData({...formData, category: ''});
+                                            } else {
+                                                setShowCustomCategory(false);
+                                                setCustomCategory('');
+                                                setFormData({...formData, category: e.target.value});
+                                            }
+                                        }} 
+                                        required={!showCustomCategory}
+                                    >
                                         <option value="">Select category</option>
                                         {(formData.type === 'expense' ? expenseCategories : incomeCategories).map(cat => 
                                             <option key={cat} value={cat}>{cat}</option>
                                         )}
+                                        <option value="custom">+ Custom Category</option>
                                     </select>
                                 </div>
+                                {showCustomCategory && (
+                                    <div className="form-group">
+                                        <label>Custom Category</label>
+                                        <input 
+                                            type="text" 
+                                            value={customCategory} 
+                                            onChange={(e) => setCustomCategory(e.target.value)} 
+                                            placeholder="Enter category name" 
+                                            required 
+                                        />
+                                    </div>
+                                )}
                             </div>
                             <button type="submit">Add Transaction</button>
                         </form>
