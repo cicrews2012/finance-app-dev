@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.7.1</title>
+    <title>Finance Tracker v1.7.2</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -249,7 +249,7 @@
                     reader.onload = (e) => {
                         try {
                             const data = JSON.parse(e.target.result);
-                            if (data.transactions) { const validTransactions = data.transactions.map(t => ({ ...t, amount: parseFloat(t.amount) || 0, id: t.id || Date.now() + Math.random() })); setTransactions(validTransactions); }
+                            if (data.transactions) { const validTransactions = data.transactions.map(t => ({ ...t, amount: parseFloat(t.amount) || 0, id: t.id || (Date.now() + Math.random()) })); setTransactions(validTransactions); }
                             if (data.recurringPayments) { 
                                 const validPayments = data.recurringPayments.map(p => ({ 
                                     name: p.name, 
@@ -258,16 +258,17 @@
                                     dueDay: parseInt(p.dueDay || p.day) || 1, 
                                     linkedDebt: p.linkedDebt || '', 
                                     auto: p.auto || false, 
-                                    id: p.id || Date.now() + Math.random() 
+                                    id: p.id || (Date.now() + Math.random()) // Preserve existing ID
                                 })); 
                                 setRecurringPayments(validPayments);
                                 
-                                // Auto-mark auto-pay items as paid ONLY if due date has passed
+                                // Load existing paid payments from export
                                 const monthKey = getMonthKey(currentMonth);
                                 const today = new Date();
                                 const { start } = getFinancialMonthRange(currentMonth);
                                 const newPaidPayments = {...(data.paidPayments || {})};
                                 
+                                // Additionally mark auto-pay items as paid if due date has passed
                                 validPayments.forEach(p => {
                                     if (p.auto) {
                                         let paymentDate;
@@ -283,7 +284,7 @@
                                 });
                                 setPaidPayments(newPaidPayments);
                             }
-                            if (data.debts) { const validDebts = data.debts.map(d => { const currentBalance = parseFloat(d.currentBalance || d.balance) || 0; const originalBalance = parseFloat(d.originalBalance) || currentBalance; return { name: d.name, originalBalance: originalBalance, currentBalance: currentBalance, interestRate: parseFloat(d.interestRate || d.apr) || 0, minimumPayment: parseFloat(d.minimumPayment || d.payment) || 0, category: d.category || 'Other', id: d.id || Date.now() + Math.random() }; }); setDebts(validDebts); }
+                            if (data.debts) { const validDebts = data.debts.map(d => { const currentBalance = parseFloat(d.currentBalance || d.balance) || 0; const originalBalance = parseFloat(d.originalBalance) || currentBalance; return { name: d.name, originalBalance: originalBalance, currentBalance: currentBalance, interestRate: parseFloat(d.interestRate || d.apr) || 0, minimumPayment: parseFloat(d.minimumPayment || d.payment) || 0, category: d.category || 'Other', id: d.id || (Date.now() + Math.random()) }; }); setDebts(validDebts); }
                             if (data.paidPayments && !data.recurringPayments) setPaidPayments(data.paidPayments);
                             alert('Data imported successfully!');
                         } catch (error) { alert('Error importing data. Please check the file format.\n\nError: ' + error.message); }
@@ -311,7 +312,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.7.1 | Edit Recurring + Better Detection</div>
+                        <div className="version">v1.7.2 | Bug Fix: Import Preserves Paid Status</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
