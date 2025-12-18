@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.7.2</title>
+    <title>Finance Tracker v1.7.3</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -122,9 +122,9 @@
             useEffect(() => { localStorage.setItem('debts', JSON.stringify(debts)); }, [debts]);
             useEffect(() => { localStorage.setItem('paidPayments', JSON.stringify(paidPayments)); }, [paidPayments]);
 
-            // Auto-process recurring payments when their due date passes
+            // Auto-process recurring payments when their due date passes (only on mount and month change)
             useEffect(() => {
-                if (recurringPayments.length === 0) return;
+                if (recurringPayments.length === 0 || Object.keys(paidPayments).length === 0) return;
                 
                 const monthKey = getMonthKey(currentMonth);
                 const today = new Date();
@@ -195,7 +195,7 @@
                     setTransactions(newTransactions);
                     setPaidPayments(newPaidPayments);
                 }
-            }, [recurringPayments, currentMonth]); // Run when recurring payments change or month changes
+            }, [currentMonth]); // Only run on month change, not on every state update
 
             const getMonthlyTotals = () => {
                 const { start, end } = getFinancialMonthRange(currentMonth);
@@ -312,7 +312,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.7.2 | Bug Fix: Import Preserves Paid Status</div>
+                        <div className="version">v1.7.3 | Fix: Import Preserves Manual Paid Status</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
