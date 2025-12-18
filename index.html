@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.6.1</title>
+    <title>Finance Tracker v1.7.0</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -122,34 +122,79 @@
             useEffect(() => { localStorage.setItem('debts', JSON.stringify(debts)); }, [debts]);
             useEffect(() => { localStorage.setItem('paidPayments', JSON.stringify(paidPayments)); }, [paidPayments]);
 
-            const getMonthlyTotals = () => {
-                const { start, end } = getFinancialMonthRange(currentMonth);
+            // Auto-process recurring payments when their due date passes
+            useEffect(() => {
+                if (recurringPayments.length === 0) return;
+                
                 const monthKey = getMonthKey(currentMonth);
                 const today = new Date();
+                const { start } = getFinancialMonthRange(currentMonth);
+                
+                let newTransactions = [...transactions];
+                let newPaidPayments = {...paidPayments};
+                let hasChanges = false;
+                
+                recurringPayments.forEach(payment => {
+                    // Skip if not auto-pay
+                    if (!payment.auto) return;
+                    
+                    // Skip if already marked as paid this month
+                    const paymentKey = `${monthKey}-${payment.id}`;
+                    if (newPaidPayments[paymentKey]) return;
+                    
+                    // Calculate payment date
+                    let paymentDate;
+                    if (payment.dueDay >= 28) {
+                        paymentDate = new Date(start.getFullYear(), start.getMonth(), payment.dueDay);
+                    } else {
+                        paymentDate = new Date(start.getFullYear(), start.getMonth() + 1, payment.dueDay);
+                    }
+                    
+                    // Check if due date has passed
+                    if (today >= paymentDate) {
+                        // Check if transaction already exists for this payment
+                        const transactionExists = newTransactions.some(t => 
+                            t.description.toLowerCase().includes(payment.name.toLowerCase()) &&
+                            t.type === 'expense' &&
+                            Math.abs(parseFloat(t.amount) - parseFloat(payment.amount)) < 0.01 &&
+                            new Date(t.date) >= start &&
+                            new Date(t.date) <= new Date(start.getFullYear(), start.getMonth() + 1, 27)
+                        );
+                        
+                        if (!transactionExists) {
+                            // Auto-create transaction
+                            newTransactions.push({
+                                type: 'expense',
+                                amount: parseFloat(payment.amount),
+                                description: `${payment.name} (Auto)`,
+                                category: payment.category,
+                                date: paymentDate.toISOString().split('T')[0],
+                                id: Date.now() + Math.random()
+                            });
+                            hasChanges = true;
+                        }
+                        
+                        // Mark as paid
+                        newPaidPayments[paymentKey] = true;
+                        hasChanges = true;
+                    }
+                });
+                
+                if (hasChanges) {
+                    setTransactions(newTransactions);
+                    setPaidPayments(newPaidPayments);
+                }
+            }, [recurringPayments, currentMonth]); // Run when recurring payments change or month changes
+
+            const getMonthlyTotals = () => {
+                const { start, end } = getFinancialMonthRange(currentMonth);
                 
                 const monthlyTransactions = transactions.filter(t => { const tDate = new Date(t.date); return tDate >= start && tDate <= end; });
                 const income = monthlyTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + parseFloat(t.amount), 0);
                 const expenses = monthlyTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + parseFloat(t.amount), 0);
                 
-                // Calculate paid recurring payments (manual OR auto if due date passed)
-                const paidRecurringTotal = recurringPayments.filter(p => {
-                    const isManuallyPaid = paidPayments[`${monthKey}-${p.id}`];
-                    if (isManuallyPaid) return true;
-                    
-                    // Check if auto-pay due date has passed
-                    if (p.auto) {
-                        let paymentDate;
-                        if (p.dueDay >= 28) {
-                            paymentDate = new Date(start.getFullYear(), start.getMonth(), p.dueDay);
-                        } else {
-                            paymentDate = new Date(start.getFullYear(), start.getMonth() + 1, p.dueDay);
-                        }
-                        return today >= paymentDate;
-                    }
-                    return false;
-                }).reduce((sum, p) => sum + parseFloat(p.amount), 0);
-                
-                return { income, expenses: expenses + paidRecurringTotal, net: income - (expenses + paidRecurringTotal) };
+                // Total Expenses = ONLY transactions (recurring payments are handled separately)
+                return { income, expenses: expenses, net: income - expenses };
             };
 
             const getTotalDebt = () => debts.reduce((sum, d) => sum + parseFloat(d.currentBalance), 0);
@@ -255,7 +300,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.6.1 | Bug Fix: Date Calculations</div>
+                        <div className="version">v1.7.0 | Auto-Transaction System</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -298,7 +343,7 @@
                     <p style={{color: '#a0aec0', marginBottom: '20px'}}>Period: {start.toLocaleDateString()} - {end.toLocaleDateString()}</p>
                     <div className="summary-grid">
                         <div className="summary-card"><h3>Total Income</h3><div className="amount">{formatCurrency(totals.income)}</div></div>
-                        <div className="summary-card"><h3>Total Expenses</h3><div className="amount">{formatCurrency(totals.expenses)}</div><div className="subtitle">Transactions + paid recurring</div></div>
+                        <div className="summary-card"><h3>Total Expenses</h3><div className="amount">{formatCurrency(totals.expenses)}</div><div className="subtitle">From transactions only</div></div>
                         <div className="summary-card"><h3>Net Balance</h3><div className="amount">{formatCurrency(totals.net)}</div><div className="subtitle">{totals.income > 0 ? ((totals.net / totals.income) * 100).toFixed(1) : 0}% of income</div></div>
                         <div className="summary-card"><h3>Unpaid Recurring</h3><div className="amount">{formatCurrency(unpaidRecurring)}</div><div className="subtitle">Still due this month</div></div>
                     </div>
@@ -734,28 +779,22 @@
                     </div>
                     <div className="section">
                         <h2>About</h2>
-                        <p style={{marginBottom: '15px', lineHeight: '1.6', color: '#e2e8f0'}}><strong>Finance Tracker v1.6.1</strong></p>
-                        <p style={{marginBottom: '10px', lineHeight: '1.6', color: '#a0aec0'}}>A comprehensive personal finance management tool with transaction editing, payment tracking, and debt strategies.</p>
-                        <h3 style={{marginTop: '20px', marginBottom: '10px', color: '#667eea'}}>v1.6.1 Bug Fixes:</h3>
+                        <p style={{marginBottom: '15px', lineHeight: '1.6', color: '#e2e8f0'}}><strong>Finance Tracker v1.7.0</strong></p>
+                        <p style={{marginBottom: '10px', lineHeight: '1.6', color: '#a0aec0'}}>A comprehensive personal finance management tool with automatic transaction creation, payment tracking, and debt strategies.</p>
+                        <h3 style={{marginTop: '20px', marginBottom: '10px', color: '#667eea'}}>v1.7.0 Major Changes:</h3>
                         <ul style={{lineHeight: '1.8', color: '#a0aec0', marginLeft: '20px'}}>
-                            <li>🐛 Fixed financial month date calculations for auto-pay</li>
-                            <li>🐛 Days 1-27 now correctly use current calendar month</li>
-                            <li>🐛 Days 28-31 correctly use previous calendar month</li>
-                            <li>✅ Total Expenses now accurately reflects only PAID recurring payments</li>
+                            <li>🚀 Auto-pay recurring payments now automatically create transactions when due</li>
+                            <li>🚀 Smart duplicate detection prevents double-counting</li>
+                            <li>✅ Total Expenses now ONLY counts transactions (no double counting)</li>
+                            <li>✅ Unpaid Recurring card shows what's still due this month</li>
+                            <li>✅ Cleaner workflow: Transactions = actual spending</li>
                         </ul>
-                        <h3 style={{marginTop: '20px', marginBottom: '10px', color: '#667eea'}}>v1.6.0 Features:</h3>
+                        <h3 style={{marginTop: '20px', marginBottom: '10px', color: '#667eea'}}>How It Works:</h3>
                         <ul style={{lineHeight: '1.8', color: '#a0aec0', marginLeft: '20px'}}>
-                            <li>✅ Edit transactions with modal dialog</li>
-                            <li>✅ Track recurring payment status (paid/unpaid)</li>
-                            <li>✅ Visual indicators for paid payments</li>
-                            <li>✅ Auto-pay flag for recurring payments</li>
-                            <li>✅ Dashboard shows unpaid recurring payments</li>
-                            <li>✅ Total amounts in Recurring and Debt tabs</li>
-                            <li>Yearly income/expense totals on dashboard</li>
-                            <li>Category filters in transaction history</li>
-                            <li>Financial month grouping (28th-27th cycle)</li>
-                            <li>Dark mode interface</li>
-                            <li>Debt payoff strategies (Snowball & Avalanche)</li>
+                            <li>AUTO payments: Automatically create transactions when due date passes</li>
+                            <li>MANUAL payments: Use "Process" button to create transaction + update debt</li>
+                            <li>Total Expenses = Sum of all transactions (no double counting)</li>
+                            <li>Unpaid Recurring = Budget planning for remaining payments</li>
                         </ul>
                     </div>
                 </div>
