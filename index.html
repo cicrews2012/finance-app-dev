@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.5.0</title>
+    <title>Finance Tracker v1.6.0</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -55,10 +55,13 @@
         button:active { transform: translateY(0); }
         button.secondary { background: #6c757d; margin-left: 10px; }
         button.danger { background: #dc3545; }
+        button.success { background: #28a745; }
         .transaction-list, .payment-list, .debt-list { margin-top: 20px; }
         .transaction-item, .payment-item, .debt-item { background: #1a1f2e; padding: 20px; border-radius: 10px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); display: flex; justify-content: space-between; align-items: center; }
         .transaction-item.income { border-left: 4px solid #28a745; }
         .transaction-item.expense { border-left: 4px solid #dc3545; }
+        .payment-item.paid { opacity: 0.6; border-left: 4px solid #28a745; }
+        .payment-item.unpaid { border-left: 4px solid #ffc107; }
         .item-details h4 { color: #e2e8f0; margin-bottom: 5px; }
         .item-details p { color: #a0aec0; font-size: 0.9em; }
         .item-amount { font-size: 1.3em; font-weight: 700; }
@@ -77,6 +80,11 @@
         .debt-detail-item { padding: 10px; background: #1a1f2e; border-radius: 5px; }
         .debt-detail-item label { font-size: 0.8em; color: #a0aec0; margin-bottom: 5px; }
         .debt-detail-item .value { font-weight: 700; color: #e2e8f0; }
+        .paid-badge { background: #28a745; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.8em; font-weight: 600; margin-left: 10px; }
+        .auto-badge { background: #17a2b8; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.8em; font-weight: 600; margin-left: 10px; }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .modal { background: #1a1f2e; border-radius: 15px; padding: 30px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; }
+        .modal h2 { color: #667eea; margin-bottom: 20px; }
         @media (max-width: 768px) { .tab-navigation { flex-wrap: wrap; } .tab-button { flex: 1 1 50%; } .summary-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
@@ -87,40 +95,46 @@
         const formatCurrency = (amount) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
         const getCurrentFinancialMonth = () => { const today = new Date(); const day = today.getDate(); const month = today.getMonth(); const year = today.getFullYear(); if (day >= 28) { return new Date(year, month + 1, 1); } else { return new Date(year, month, 1); } };
         const getFinancialMonthRange = (date) => { const month = date.getMonth(); const year = date.getFullYear(); const start = new Date(year, month - 1, 28); const end = new Date(year, month, 27, 23, 59, 59); return { start, end }; };
+        const getMonthKey = (date) => { const d = new Date(date); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
 
         function FinanceTracker() {
             const [activeTab, setActiveTab] = useState('dashboard');
             const [transactions, setTransactions] = useState([]);
             const [recurringPayments, setRecurringPayments] = useState([]);
             const [debts, setDebts] = useState([]);
+            const [paidPayments, setPaidPayments] = useState({});
             const [currentMonth, setCurrentMonth] = useState(getCurrentFinancialMonth());
 
             useEffect(() => {
                 const savedTransactions = localStorage.getItem('transactions');
                 const savedPayments = localStorage.getItem('recurringPayments');
                 const savedDebts = localStorage.getItem('debts');
+                const savedPaidPayments = localStorage.getItem('paidPayments');
                 if (savedTransactions) setTransactions(JSON.parse(savedTransactions));
                 if (savedPayments) setRecurringPayments(JSON.parse(savedPayments));
                 if (savedDebts) setDebts(JSON.parse(savedDebts));
+                if (savedPaidPayments) setPaidPayments(JSON.parse(savedPaidPayments));
             }, []);
 
             useEffect(() => { localStorage.setItem('transactions', JSON.stringify(transactions)); }, [transactions]);
             useEffect(() => { localStorage.setItem('recurringPayments', JSON.stringify(recurringPayments)); }, [recurringPayments]);
             useEffect(() => { localStorage.setItem('debts', JSON.stringify(debts)); }, [debts]);
+            useEffect(() => { localStorage.setItem('paidPayments', JSON.stringify(paidPayments)); }, [paidPayments]);
 
             const getMonthlyTotals = () => {
                 const { start, end } = getFinancialMonthRange(currentMonth);
+                const monthKey = getMonthKey(currentMonth);
                 const monthlyTransactions = transactions.filter(t => { const tDate = new Date(t.date); return tDate >= start && tDate <= end; });
                 const income = monthlyTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + parseFloat(t.amount), 0);
                 const expenses = monthlyTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + parseFloat(t.amount), 0);
-                const recurringTotal = recurringPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
-                return { income, expenses: expenses + recurringTotal, net: income - (expenses + recurringTotal) };
+                const paidRecurringTotal = recurringPayments.filter(p => paidPayments[`${monthKey}-${p.id}`]).reduce((sum, p) => sum + parseFloat(p.amount), 0);
+                return { income, expenses: expenses + paidRecurringTotal, net: income - (expenses + paidRecurringTotal) };
             };
 
             const getTotalDebt = () => debts.reduce((sum, d) => sum + parseFloat(d.currentBalance), 0);
 
             const exportData = () => {
-                const data = { transactions, recurringPayments, debts, exportDate: new Date().toISOString() };
+                const data = { transactions, recurringPayments, debts, paidPayments, exportDate: new Date().toISOString() };
                 const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -137,8 +151,9 @@
                         try {
                             const data = JSON.parse(e.target.result);
                             if (data.transactions) { const validTransactions = data.transactions.map(t => ({ ...t, amount: parseFloat(t.amount) || 0, id: t.id || Date.now() + Math.random() })); setTransactions(validTransactions); }
-                            if (data.recurringPayments) { const validPayments = data.recurringPayments.map(p => ({ name: p.name, amount: parseFloat(p.amount) || 0, category: p.category || '', dueDay: parseInt(p.dueDay || p.day) || 1, linkedDebt: p.linkedDebt || '', id: p.id || Date.now() + Math.random() })); setRecurringPayments(validPayments); }
+                            if (data.recurringPayments) { const validPayments = data.recurringPayments.map(p => ({ name: p.name, amount: parseFloat(p.amount) || 0, category: p.category || '', dueDay: parseInt(p.dueDay || p.day) || 1, linkedDebt: p.linkedDebt || '', auto: p.auto || false, id: p.id || Date.now() + Math.random() })); setRecurringPayments(validPayments); }
                             if (data.debts) { const validDebts = data.debts.map(d => { const currentBalance = parseFloat(d.currentBalance || d.balance) || 0; const originalBalance = parseFloat(d.originalBalance) || currentBalance; return { name: d.name, originalBalance: originalBalance, currentBalance: currentBalance, interestRate: parseFloat(d.interestRate || d.apr) || 0, minimumPayment: parseFloat(d.minimumPayment || d.payment) || 0, category: d.category || 'Other', id: d.id || Date.now() + Math.random() }; }); setDebts(validDebts); }
+                            if (data.paidPayments) setPaidPayments(data.paidPayments);
                             alert('Data imported successfully!');
                         } catch (error) { alert('Error importing data. Please check the file format.\n\nError: ' + error.message); }
                     };
@@ -152,6 +167,7 @@
                     setTransactions([]);
                     setRecurringPayments([]);
                     setDebts([]);
+                    setPaidPayments({});
                     localStorage.clear();
                 }
             };
@@ -163,7 +179,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.5.0 | Yearly Overview + Category Filters</div>
+                        <div className="version">v1.6.0 | Edit Transactions + Payment Tracking</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -176,7 +192,7 @@
                     <div className="tab-content">
                         {activeTab === 'dashboard' && <DashboardTab totals={totals} totalDebt={totalDebt} currentMonth={currentMonth} transactions={transactions} recurringPayments={recurringPayments} debts={debts} />}
                         {activeTab === 'transactions' && <TransactionsTab transactions={transactions} setTransactions={setTransactions} currentMonth={currentMonth} />}
-                        {activeTab === 'recurring' && <RecurringTab recurringPayments={recurringPayments} setRecurringPayments={setRecurringPayments} debts={debts} setDebts={setDebts} transactions={transactions} setTransactions={setTransactions} />}
+                        {activeTab === 'recurring' && <RecurringTab recurringPayments={recurringPayments} setRecurringPayments={setRecurringPayments} debts={debts} setDebts={setDebts} transactions={transactions} setTransactions={setTransactions} paidPayments={paidPayments} setPaidPayments={setPaidPayments} currentMonth={currentMonth} />}
                         {activeTab === 'debts' && <DebtsTab debts={debts} setDebts={setDebts} />}
                         {activeTab === 'payoff' && <PayoffStrategiesTab debts={debts} />}
                         {activeTab === 'settings' && <SettingsTab exportData={exportData} importData={importData} clearAllData={clearAllData} />}
@@ -241,6 +257,7 @@
             const [formData, setFormData] = useState({ type: 'expense', amount: '', description: '', category: '', date: new Date().toISOString().split('T')[0] });
             const [expandedMonths, setExpandedMonths] = useState({});
             const [selectedCategory, setSelectedCategory] = useState('All');
+            const [editingTransaction, setEditingTransaction] = useState(null);
 
             const handleSubmit = (e) => {
                 e.preventDefault();
@@ -248,6 +265,15 @@
                     setTransactions([...transactions, { ...formData, amount: parseFloat(formData.amount), id: Date.now() }]);
                     setFormData({ type: 'expense', amount: '', description: '', category: '', date: new Date().toISOString().split('T')[0] });
                 }
+            };
+
+            const handleEdit = (transaction) => {
+                setEditingTransaction(transaction);
+            };
+
+            const handleUpdate = (updatedTransaction) => {
+                setTransactions(transactions.map(t => t.id === updatedTransaction.id ? updatedTransaction : t));
+                setEditingTransaction(null);
             };
 
             const deleteTransaction = (id) => setTransactions(transactions.filter(t => t.id !== id));
@@ -316,6 +342,7 @@
                                                         <div className="item-details"><h4>{transaction.description}</h4><p>{transaction.category} • {new Date(transaction.date).toLocaleDateString()}</p></div>
                                                         <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
                                                             <div className={`item-amount ${transaction.type === 'income' ? 'positive' : 'negative'}`}>{transaction.type === 'income' ? '+' : '-'}{formatCurrency(Math.abs(parseFloat(transaction.amount) || 0))}</div>
+                                                            <button onClick={() => handleEdit(transaction)} style={{padding: '8px 16px', fontSize: '0.9em'}}>Edit</button>
                                                             <button className="danger" onClick={() => deleteTransaction(transaction.id)} style={{padding: '8px 16px', fontSize: '0.9em'}}>Delete</button>
                                                         </div>
                                                     </div>
@@ -327,19 +354,69 @@
                             ))
                         )}
                     </div>
+                    {editingTransaction && <EditTransactionModal transaction={editingTransaction} onUpdate={handleUpdate} onClose={() => setEditingTransaction(null)} />}
                 </div>
             );
         }
 
-        function RecurringTab({ recurringPayments, setRecurringPayments, debts, setDebts, transactions, setTransactions }) {
-            const [formData, setFormData] = useState({ name: '', amount: '', category: '', dueDay: '1', linkedDebt: '' });
-            const handleSubmit = (e) => { e.preventDefault(); if (formData.name && formData.amount) { setRecurringPayments([...recurringPayments, { ...formData, amount: parseFloat(formData.amount), dueDay: parseInt(formData.dueDay), id: Date.now() }]); setFormData({ name: '', amount: '', category: '', dueDay: '1', linkedDebt: '' }); } };
+        function EditTransactionModal({ transaction, onUpdate, onClose }) {
+            const [formData, setFormData] = useState({ ...transaction });
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                onUpdate({ ...formData, amount: parseFloat(formData.amount) });
+            };
+
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()}>
+                        <h2>Edit Transaction</h2>
+                        <form onSubmit={handleSubmit}>
+                            <div className="form-row">
+                                <div className="form-group"><label>Type</label><select value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})}><option value="income">Income</option><option value="expense">Expense</option></select></div>
+                                <div className="form-group"><label>Amount</label><input type="number" step="0.01" value={formData.amount} onChange={(e) => setFormData({...formData, amount: e.target.value})} required /></div>
+                                <div className="form-group"><label>Date</label><input type="date" value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} required /></div>
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group"><label>Description</label><input type="text" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} required /></div>
+                                <div className="form-group"><label>Category</label><input type="text" value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} /></div>
+                            </div>
+                            <div style={{display: 'flex', gap: '10px', marginTop: '20px'}}>
+                                <button type="submit">Save Changes</button>
+                                <button type="button" className="secondary" onClick={onClose}>Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            );
+        }
+
+        function RecurringTab({ recurringPayments, setRecurringPayments, debts, setDebts, transactions, setTransactions, paidPayments, setPaidPayments, currentMonth }) {
+            const [formData, setFormData] = useState({ name: '', amount: '', category: '', dueDay: '1', linkedDebt: '', auto: false });
+            const monthKey = getMonthKey(currentMonth);
+
+            const handleSubmit = (e) => { 
+                e.preventDefault(); 
+                if (formData.name && formData.amount) { 
+                    setRecurringPayments([...recurringPayments, { ...formData, amount: parseFloat(formData.amount), dueDay: parseInt(formData.dueDay), id: Date.now() }]); 
+                    setFormData({ name: '', amount: '', category: '', dueDay: '1', linkedDebt: '', auto: false }); 
+                } 
+            };
+
             const deletePayment = (id) => setRecurringPayments(recurringPayments.filter(p => p.id !== id));
+            
             const processPayment = (payment) => {
+                const paymentKey = `${monthKey}-${payment.id}`;
                 const newTransaction = { type: 'expense', amount: payment.amount, description: `${payment.name} (Recurring)`, category: payment.category, date: new Date().toISOString().split('T')[0], id: Date.now() };
                 setTransactions([...transactions, newTransaction]);
+                setPaidPayments({...paidPayments, [paymentKey]: true});
                 if (payment.linkedDebt) { setDebts(debts.map(debt => { if (debt.id === parseInt(payment.linkedDebt)) { const newBalance = debt.currentBalance - payment.amount; return { ...debt, currentBalance: Math.max(0, newBalance) }; } return debt; })); }
                 alert(`Payment processed: ${payment.name} for ${formatCurrency(payment.amount)}`);
+            };
+
+            const togglePaidStatus = (paymentId) => {
+                const paymentKey = `${monthKey}-${paymentId}`;
+                setPaidPayments({...paidPayments, [paymentKey]: !paidPayments[paymentKey]});
             };
 
             return (
@@ -356,7 +433,13 @@
                                 <div className="form-group"><label>Due Day (1-31)</label><input type="number" min="1" max="31" value={formData.dueDay} onChange={(e) => setFormData({...formData, dueDay: e.target.value})} required /></div>
                                 <div className="form-group"><label>Link to Debt (Optional)</label><select value={formData.linkedDebt} onChange={(e) => setFormData({...formData, linkedDebt: e.target.value})}><option value="">None</option>{debts.map(debt => (<option key={debt.id} value={debt.id}>{debt.name}</option>))}</select></div>
                             </div>
-                            <button type="submit">Add Recurring Payment</button>
+                            <div className="form-group" style={{marginBottom: '0'}}>
+                                <label style={{display: 'flex', alignItems: 'center', cursor: 'pointer'}}>
+                                    <input type="checkbox" checked={formData.auto} onChange={(e) => setFormData({...formData, auto: e.target.checked})} style={{width: 'auto', marginRight: '10px'}} />
+                                    Auto-pay (mark as paid automatically)
+                                </label>
+                            </div>
+                            <button type="submit" style={{marginTop: '20px'}}>Add Recurring Payment</button>
                         </form>
                     </div>
                     <div className="section">
@@ -367,12 +450,21 @@
                             ) : (
                                 recurringPayments.map((payment) => {
                                     const linkedDebt = payment.linkedDebt ? debts.find(d => d.id === parseInt(payment.linkedDebt)) : null;
+                                    const isPaid = paidPayments[`${monthKey}-${payment.id}`];
                                     return (
-                                        <div key={payment.id} className="payment-item">
-                                            <div className="item-details"><h4>{payment.name}</h4><p>{payment.category} • Due: Day {payment.dueDay}{linkedDebt && ` • Linked to: ${linkedDebt.name}`}</p></div>
+                                        <div key={payment.id} className={`payment-item ${isPaid ? 'paid' : 'unpaid'}`}>
+                                            <div className="item-details">
+                                                <h4>
+                                                    {payment.name}
+                                                    {isPaid && <span className="paid-badge">✓ Paid</span>}
+                                                    {payment.auto && <span className="auto-badge">AUTO</span>}
+                                                </h4>
+                                                <p>{payment.category} • Due: Day {payment.dueDay}{linkedDebt && ` • Linked to: ${linkedDebt.name}`}</p>
+                                            </div>
                                             <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
                                                 <div className="item-amount negative">{formatCurrency(payment.amount)}</div>
-                                                <button onClick={() => processPayment(payment)} style={{padding: '8px 16px', fontSize: '0.9em'}}>Process</button>
+                                                {!isPaid && <button onClick={() => processPayment(payment)} style={{padding: '8px 16px', fontSize: '0.9em'}}>Process</button>}
+                                                <button className={isPaid ? 'secondary' : 'success'} onClick={() => togglePaidStatus(payment.id)} style={{padding: '8px 16px', fontSize: '0.9em'}}>{isPaid ? 'Mark Unpaid' : 'Mark Paid'}</button>
                                                 <button className="danger" onClick={() => deletePayment(payment.id)} style={{padding: '8px 16px', fontSize: '0.9em'}}>Delete</button>
                                             </div>
                                         </div>
@@ -528,16 +620,20 @@
                     </div>
                     <div className="section">
                         <h2>About</h2>
-                        <p style={{marginBottom: '15px', lineHeight: '1.6', color: '#e2e8f0'}}><strong>Finance Tracker v1.5.0</strong></p>
-                        <p style={{marginBottom: '10px', lineHeight: '1.6', color: '#a0aec0'}}>A comprehensive personal finance management tool with yearly overview, category filters, debt management, and payoff strategies.</p>
-                        <h3 style={{marginTop: '20px', marginBottom: '10px', color: '#667eea'}}>v1.5.0 Features:</h3>
+                        <p style={{marginBottom: '15px', lineHeight: '1.6', color: '#e2e8f0'}}><strong>Finance Tracker v1.6.0</strong></p>
+                        <p style={{marginBottom: '10px', lineHeight: '1.6', color: '#a0aec0'}}>A comprehensive personal finance management tool with transaction editing, payment tracking, and debt strategies.</p>
+                        <h3 style={{marginTop: '20px', marginBottom: '10px', color: '#667eea'}}>v1.6.0 Features:</h3>
                         <ul style={{lineHeight: '1.8', color: '#a0aec0', marginLeft: '20px'}}>
+                            <li>✅ Edit transactions with modal dialog</li>
+                            <li>✅ Track recurring payment status (paid/unpaid)</li>
+                            <li>✅ Visual indicators for paid payments</li>
+                            <li>✅ Auto-pay flag for recurring payments</li>
+                            <li>✅ Corrected net balance (only counts PAID recurring payments)</li>
                             <li>Yearly income/expense totals on dashboard</li>
                             <li>Category filters in transaction history</li>
                             <li>Financial month grouping (28th-27th cycle)</li>
                             <li>Dark mode interface</li>
                             <li>Debt payoff strategies (Snowball & Avalanche)</li>
-                            <li>Import/export compatibility with old format</li>
                         </ul>
                     </div>
                 </div>
