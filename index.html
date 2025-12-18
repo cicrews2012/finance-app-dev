@@ -666,16 +666,50 @@
                     reader.onload = (e) => {
                         try {
                             const data = JSON.parse(e.target.result);
-                            if (data.transactions) setTransactions(data.transactions);
-                            if (data.recurringPayments) setRecurringPayments(data.recurringPayments);
-                            if (data.debts) setDebts(data.debts);
+                            
+                            // Parse and validate transactions
+                            if (data.transactions) {
+                                const validTransactions = data.transactions.map(t => ({
+                                    ...t,
+                                    amount: parseFloat(t.amount) || 0,
+                                    id: t.id || Date.now() + Math.random()
+                                }));
+                                setTransactions(validTransactions);
+                            }
+                            
+                            // Parse and validate recurring payments
+                            if (data.recurringPayments) {
+                                const validPayments = data.recurringPayments.map(p => ({
+                                    ...p,
+                                    amount: parseFloat(p.amount) || 0,
+                                    dueDay: parseInt(p.dueDay) || 1,
+                                    id: p.id || Date.now() + Math.random()
+                                }));
+                                setRecurringPayments(validPayments);
+                            }
+                            
+                            // Parse and validate debts
+                            if (data.debts) {
+                                const validDebts = data.debts.map(d => ({
+                                    ...d,
+                                    originalBalance: parseFloat(d.originalBalance) || parseFloat(d.currentBalance) || 0,
+                                    currentBalance: parseFloat(d.currentBalance) || 0,
+                                    interestRate: parseFloat(d.interestRate) || 0,
+                                    minimumPayment: parseFloat(d.minimumPayment) || 0,
+                                    id: d.id || Date.now() + Math.random()
+                                }));
+                                setDebts(validDebts);
+                            }
+                            
                             alert('Data imported successfully!');
                         } catch (error) {
-                            alert('Error importing data. Please check the file format.');
+                            alert('Error importing data. Please check the file format.\n\nError: ' + error.message);
                         }
                     };
                     reader.readAsText(file);
                 }
+                // Reset the file input so the same file can be imported again
+                event.target.value = '';
             };
 
             // Clear all data
