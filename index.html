@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.7.4</title>
+    <title>Finance Tracker v1.7.5</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -173,12 +173,19 @@
                             const amountMatch = Math.abs(parseFloat(t.amount) - parseFloat(payment.amount)) < 1.0;
                             if (!amountMatch) return false;
                             
-                            // Check if description contains any significant words from payment name (3+ chars)
+                            // Check if categories match (if payment has category)
+                            if (payment.category && t.category) {
+                                if (payment.category.toLowerCase() !== t.category.toLowerCase()) return false;
+                            }
+                            
+                            // Check if description contains ALL significant words from payment name (3+ chars)
                             const paymentWords = payment.name.toLowerCase().split(/\s+/).filter(w => w.length >= 3);
                             const descWords = t.description.toLowerCase();
-                            const nameMatch = paymentWords.some(word => descWords.includes(word));
                             
-                            return nameMatch;
+                            // Require ALL words to match, not just one
+                            const allWordsMatch = paymentWords.every(word => descWords.includes(word));
+                            
+                            return allWordsMatch;
                         });
                         
                         if (!transactionExists) {
@@ -321,7 +328,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.7.4 | Fix: Prevent Duplicate Auto-Transactions</div>
+                        <div className="version">v1.7.5 | Fix: Better Duplicate Detection</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
