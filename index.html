@@ -16,7 +16,7 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             min-height: 100vh;
             padding: 20px;
         }
@@ -27,9 +27,9 @@
         }
         
         .app-container {
-            background: white;
+            background: #0f1419;
             border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
             overflow: hidden;
         }
         
@@ -53,8 +53,8 @@
         
         .tab-navigation {
             display: flex;
-            background: #f8f9fa;
-            border-bottom: 2px solid #e9ecef;
+            background: #1a1f2e;
+            border-bottom: 2px solid #2d3748;
             overflow-x: auto;
         }
         
@@ -67,24 +67,25 @@
             cursor: pointer;
             font-size: 1em;
             font-weight: 600;
-            color: #6c757d;
+            color: #a0aec0;
             transition: all 0.3s ease;
             border-bottom: 3px solid transparent;
         }
         
         .tab-button:hover {
-            background: #e9ecef;
-            color: #495057;
+            background: #2d3748;
+            color: #e2e8f0;
         }
         
         .tab-button.active {
             color: #667eea;
             border-bottom-color: #667eea;
-            background: white;
+            background: #0f1419;
         }
         
         .tab-content {
             padding: 30px;
+            background: #0f1419;
         }
         
         .summary-grid {
@@ -99,7 +100,7 @@
             color: white;
             padding: 25px;
             border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
         
         .summary-card h3 {
@@ -122,7 +123,7 @@
         }
         
         .section {
-            background: #f8f9fa;
+            background: #1a1f2e;
             padding: 25px;
             border-radius: 15px;
             margin-bottom: 20px;
@@ -148,16 +149,17 @@
         }
 
         .chart-container {
-            background: white;
+            background: #0f1419;
             padding: 20px;
             border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            border: 1px solid #2d3748;
         }
 
         .chart-title {
             font-size: 1.2em;
             font-weight: 600;
-            color: #495057;
+            color: #e2e8f0;
             margin-bottom: 15px;
         }
 
@@ -170,14 +172,14 @@
         .category-label {
             width: 120px;
             font-size: 0.9em;
-            color: #495057;
+            color: #a0aec0;
             font-weight: 500;
         }
 
         .category-bar-bg {
             flex: 1;
             height: 30px;
-            background: #e9ecef;
+            background: #2d3748;
             border-radius: 5px;
             overflow: hidden;
             position: relative;
@@ -202,15 +204,15 @@
         }
 
         .debt-mini-card {
-            background: white;
+            background: #1a1f2e;
             padding: 18px;
             border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
             border-left: 4px solid #ffc107;
         }
 
         .debt-mini-card h4 {
-            color: #212529;
+            color: #e2e8f0;
             margin-bottom: 8px;
             font-size: 1em;
         }
@@ -224,7 +226,7 @@
 
         .debt-mini-card .debt-info {
             font-size: 0.85em;
-            color: #6c757d;
+            color: #a0aec0;
             margin-bottom: 4px;
         }
 
@@ -235,10 +237,10 @@
         }
 
         .upcoming-payment-item {
-            background: white;
+            background: #1a1f2e;
             padding: 15px;
             border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -261,12 +263,12 @@
         }
 
         .payment-info h4 {
-            color: #212529;
+            color: #e2e8f0;
             margin-bottom: 4px;
         }
 
         .payment-info p {
-            color: #6c757d;
+            color: #a0aec0;
             font-size: 0.85em;
         }
 
@@ -338,7 +340,7 @@
         label {
             display: block;
             margin-bottom: 8px;
-            color: #495057;
+            color: #a0aec0;
             font-weight: 600;
             font-size: 0.9em;
         }
@@ -346,10 +348,12 @@
         input, select {
             width: 100%;
             padding: 12px;
-            border: 2px solid #e9ecef;
+            border: 2px solid #2d3748;
             border-radius: 8px;
             font-size: 1em;
             transition: border-color 0.3s;
+            background: #0f1419;
+            color: #e2e8f0;
         }
         
         input:focus, select:focus {
@@ -392,11 +396,11 @@
         }
         
         .transaction-item, .payment-item, .debt-item {
-            background: white;
+            background: #1a1f2e;
             padding: 20px;
             border-radius: 10px;
             margin-bottom: 15px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -411,12 +415,12 @@
         }
         
         .item-details h4 {
-            color: #212529;
+            color: #e2e8f0;
             margin-bottom: 5px;
         }
         
         .item-details p {
-            color: #6c757d;
+            color: #a0aec0;
             font-size: 0.9em;
         }
         
@@ -466,7 +470,7 @@
         
         .collapsible-content {
             padding: 20px;
-            background: white;
+            background: #0f1419;
             border-radius: 0 0 10px 10px;
             margin-top: 2px;
         }
@@ -478,7 +482,7 @@
         .progress-bar {
             width: 100%;
             height: 8px;
-            background: #e9ecef;
+            background: #2d3748;
             border-radius: 4px;
             overflow: hidden;
             margin-top: 10px;
@@ -500,19 +504,19 @@
         
         .debt-detail-item {
             padding: 10px;
-            background: #f8f9fa;
+            background: #1a1f2e;
             border-radius: 5px;
         }
         
         .debt-detail-item label {
             font-size: 0.8em;
-            color: #6c757d;
+            color: #a0aec0;
             margin-bottom: 5px;
         }
         
         .debt-detail-item .value {
             font-weight: 700;
-            color: #212529;
+            color: #e2e8f0;
         }
         
         @media (max-width: 768px) {
@@ -691,7 +695,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.3.0-beta | Enhanced Dashboard</div>
+                        <div className="version">v1.4.0-beta | Dark Mode + Payoff Strategies</div>
                     </div>
 
                     <div className="tab-navigation">
@@ -718,6 +722,12 @@
                             onClick={() => setActiveTab('debts')}
                         >
                             📉 Debt Tracking
+                        </button>
+                        <button 
+                            className={`tab-button ${activeTab === 'payoff' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('payoff')}
+                        >
+                            🎯 Payoff Strategies
                         </button>
                         <button 
                             className={`tab-button ${activeTab === 'settings' ? 'active' : ''}`}
@@ -759,6 +769,11 @@
                             <DebtsTab 
                                 debts={debts}
                                 setDebts={setDebts}
+                            />
+                        )}
+                        {activeTab === 'payoff' && (
+                            <PayoffStrategiesTab 
+                                debts={debts}
                             />
                         )}
                         {activeTab === 'settings' && (
@@ -1650,6 +1665,262 @@
                             )}
                         </div>
                     </div>
+                </div>
+            );
+        }
+
+        // Payoff Strategies Tab Component
+        function PayoffStrategiesTab({ debts }) {
+            const [extraPayment, setExtraPayment] = useState(0);
+            const [selectedStrategy, setSelectedStrategy] = useState('snowball');
+
+            // Calculate payoff timeline for a single debt
+            const calculateDebtPayoff = (debt, monthlyPayment) => {
+                if (monthlyPayment <= 0 || debt.currentBalance <= 0) {
+                    return { months: 0, totalInterest: 0 };
+                }
+
+                const monthlyRate = (parseFloat(debt.interestRate) / 100) / 12;
+                let balance = parseFloat(debt.currentBalance);
+                let months = 0;
+                let totalInterest = 0;
+
+                while (balance > 0 && months < 600) {
+                    const interest = balance * monthlyRate;
+                    const principal = monthlyPayment - interest;
+
+                    if (principal <= 0) {
+                        return { months: 999, totalInterest: 999999 }; // Payment too low
+                    }
+
+                    totalInterest += interest;
+                    balance -= principal;
+                    months++;
+                }
+
+                return { months, totalInterest };
+            };
+
+            // Snowball Method: Pay off smallest balance first
+            const calculateSnowball = () => {
+                const sortedDebts = [...debts]
+                    .map(d => ({
+                        ...d,
+                        currentBalance: parseFloat(d.currentBalance),
+                        minimumPayment: parseFloat(d.minimumPayment),
+                        interestRate: parseFloat(d.interestRate)
+                    }))
+                    .sort((a, b) => a.currentBalance - b.currentBalance);
+
+                return calculatePayoffOrder(sortedDebts);
+            };
+
+            // Avalanche Method: Pay off highest interest rate first
+            const calculateAvalanche = () => {
+                const sortedDebts = [...debts]
+                    .map(d => ({
+                        ...d,
+                        currentBalance: parseFloat(d.currentBalance),
+                        minimumPayment: parseFloat(d.minimumPayment),
+                        interestRate: parseFloat(d.interestRate)
+                    }))
+                    .sort((a, b) => b.interestRate - a.interestRate);
+
+                return calculatePayoffOrder(sortedDebts);
+            };
+
+            // Calculate payoff order
+            const calculatePayoffOrder = (sortedDebts) => {
+                const timeline = [];
+                let currentMonth = 0;
+                let totalInterest = 0;
+                let remainingDebts = sortedDebts.map(d => ({ ...d }));
+                const extra = parseFloat(extraPayment) || 0;
+
+                while (remainingDebts.length > 0) {
+                    // Pay minimum on all debts
+                    let availableExtra = extra;
+                    
+                    remainingDebts = remainingDebts.filter(debt => {
+                        const monthlyRate = (debt.interestRate / 100) / 12;
+                        const interest = debt.currentBalance * monthlyRate;
+                        totalInterest += interest;
+
+                        let payment = debt.minimumPayment;
+                        
+                        // Apply extra payment to first debt
+                        if (debt === remainingDebts[0]) {
+                            payment += availableExtra;
+                        }
+
+                        const principal = payment - interest;
+                        debt.currentBalance -= principal;
+
+                        if (debt.currentBalance <= 0) {
+                            timeline.push({
+                                name: debt.name,
+                                month: currentMonth,
+                                category: debt.category,
+                                originalBalance: debt.currentBalance + principal
+                            });
+                            return false;
+                        }
+                        return true;
+                    });
+
+                    currentMonth++;
+                    
+                    if (currentMonth > 600) break; // Safety limit
+                }
+
+                return { timeline, totalMonths: currentMonth, totalInterest };
+            };
+
+            const snowballResult = calculateSnowball();
+            const avalancheResult = calculateAvalanche();
+            const activeResult = selectedStrategy === 'snowball' ? snowballResult : avalancheResult;
+
+            const formatMonth = (monthNum) => {
+                const date = new Date();
+                date.setMonth(date.getMonth() + monthNum);
+                return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            };
+
+            return (
+                <div>
+                    <div className="section">
+                        <h2>🎯 Debt Payoff Strategies</h2>
+                        <p style={{color: '#a0aec0', lineHeight: '1.6', marginBottom: '20px'}}>
+                            Compare two popular debt payoff strategies to find the best approach for your situation.
+                        </p>
+
+                        <div className="form-row" style={{marginBottom: '20px'}}>
+                            <div className="form-group">
+                                <label>Extra Monthly Payment</label>
+                                <input 
+                                    type="number"
+                                    step="0.01"
+                                    value={extraPayment}
+                                    onChange={(e) => setExtraPayment(e.target.value)}
+                                    placeholder="0.00"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>View Strategy</label>
+                                <select 
+                                    value={selectedStrategy}
+                                    onChange={(e) => setSelectedStrategy(e.target.value)}
+                                >
+                                    <option value="snowball">Debt Snowball</option>
+                                    <option value="avalanche">Debt Avalanche</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    {debts.length === 0 ? (
+                        <div className="section">
+                            <p style={{color: '#a0aec0', textAlign: 'center', padding: '40px'}}>
+                                No debts to analyze. Add debts in the Debt Tracking tab to see payoff strategies.
+                            </p>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="dashboard-grid">
+                                {/* Snowball Method */}
+                                <div className="section">
+                                    <h2>❄️ Debt Snowball</h2>
+                                    <p style={{color: '#a0aec0', fontSize: '0.9em', marginBottom: '15px'}}>
+                                        Pay off smallest balances first for psychological wins
+                                    </p>
+                                    <div className="chart-container">
+                                        <div style={{marginBottom: '20px'}}>
+                                            <div style={{fontSize: '2em', fontWeight: '700', color: '#667eea', marginBottom: '5px'}}>
+                                                {snowballResult.totalMonths} months
+                                            </div>
+                                            <div style={{color: '#a0aec0', fontSize: '0.9em'}}>
+                                                Total Interest: {formatCurrency(snowballResult.totalInterest)}
+                                            </div>
+                                            <div style={{color: '#a0aec0', fontSize: '0.9em'}}>
+                                                Debt-Free: {formatMonth(snowballResult.totalMonths)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Avalanche Method */}
+                                <div className="section">
+                                    <h2>⛰️ Debt Avalanche</h2>
+                                    <p style={{color: '#a0aec0', fontSize: '0.9em', marginBottom: '15px'}}>
+                                        Pay off highest interest rates first to save money
+                                    </p>
+                                    <div className="chart-container">
+                                        <div style={{marginBottom: '20px'}}>
+                                            <div style={{fontSize: '2em', fontWeight: '700', color: '#667eea', marginBottom: '5px'}}>
+                                                {avalancheResult.totalMonths} months
+                                            </div>
+                                            <div style={{color: '#a0aec0', fontSize: '0.9em'}}>
+                                                Total Interest: {formatCurrency(avalancheResult.totalInterest)}
+                                            </div>
+                                            <div style={{color: '#a0aec0', fontSize: '0.9em'}}>
+                                                Debt-Free: {formatMonth(avalancheResult.totalMonths)}
+                                            </div>
+                                        </div>
+                                        {avalancheResult.totalInterest < snowballResult.totalInterest && (
+                                            <div style={{
+                                                background: '#28a745',
+                                                color: 'white',
+                                                padding: '10px',
+                                                borderRadius: '5px',
+                                                fontSize: '0.85em',
+                                                textAlign: 'center'
+                                            }}>
+                                                💰 Saves {formatCurrency(snowballResult.totalInterest - avalancheResult.totalInterest)} in interest
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Payoff Timeline */}
+                            <div className="section">
+                                <h2>
+                                    {selectedStrategy === 'snowball' ? '❄️ Snowball' : '⛰️ Avalanche'} Payoff Timeline
+                                </h2>
+                                <div style={{marginTop: '20px'}}>
+                                    {activeResult.timeline.map((item, index) => (
+                                        <div key={index} style={{
+                                            background: '#1a1f2e',
+                                            padding: '15px 20px',
+                                            borderRadius: '8px',
+                                            marginBottom: '10px',
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            borderLeft: '4px solid #28a745'
+                                        }}>
+                                            <div>
+                                                <h4 style={{color: '#e2e8f0', marginBottom: '5px'}}>
+                                                    {item.name}
+                                                </h4>
+                                                <p style={{color: '#a0aec0', fontSize: '0.85em'}}>
+                                                    {item.category}
+                                                </p>
+                                            </div>
+                                            <div style={{textAlign: 'right'}}>
+                                                <div style={{color: '#28a745', fontWeight: '700', fontSize: '1.1em'}}>
+                                                    Month {item.month}
+                                                </div>
+                                                <div style={{color: '#a0aec0', fontSize: '0.85em'}}>
+                                                    {formatMonth(item.month)}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </div>
             );
         }
