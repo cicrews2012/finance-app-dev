@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.7.0</title>
+    <title>Finance Tracker v1.7.1</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -153,13 +153,24 @@
                     // Check if due date has passed
                     if (today >= paymentDate) {
                         // Check if transaction already exists for this payment
-                        const transactionExists = newTransactions.some(t => 
-                            t.description.toLowerCase().includes(payment.name.toLowerCase()) &&
-                            t.type === 'expense' &&
-                            Math.abs(parseFloat(t.amount) - parseFloat(payment.amount)) < 0.01 &&
-                            new Date(t.date) >= start &&
-                            new Date(t.date) <= new Date(start.getFullYear(), start.getMonth() + 1, 27)
-                        );
+                        const transactionExists = newTransactions.some(t => {
+                            if (t.type !== 'expense') return false;
+                            
+                            // Check if date is within current financial month
+                            const tDate = new Date(t.date);
+                            if (tDate < start || tDate > new Date(start.getFullYear(), start.getMonth() + 1, 27)) return false;
+                            
+                            // Check if amounts are similar (within $1)
+                            const amountMatch = Math.abs(parseFloat(t.amount) - parseFloat(payment.amount)) < 1.0;
+                            if (!amountMatch) return false;
+                            
+                            // Check if description contains any significant words from payment name (3+ chars)
+                            const paymentWords = payment.name.toLowerCase().split(/\s+/).filter(w => w.length >= 3);
+                            const descWords = t.description.toLowerCase();
+                            const nameMatch = paymentWords.some(word => descWords.includes(word));
+                            
+                            return nameMatch;
+                        });
                         
                         if (!transactionExists) {
                             // Auto-create transaction
@@ -300,7 +311,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.7.0 | Auto-Transaction System</div>
+                        <div className="version">v1.7.1 | Edit Recurring + Better Detection</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -458,7 +469,7 @@
                                     {expandedMonths[monthKey] && (
                                         <div className="collapsible-content">
                                             <div className="transaction-list">
-                                                {[...data.transactions].reverse().map((transaction) => (
+                                                {[...data.transactions].sort((a, b) => new Date(b.date) - new Date(a.date)).map((transaction) => (
                                                     <div key={transaction.id} className={`transaction-item ${transaction.type}`}>
                                                         <div className="item-details"><h4>{transaction.description}</h4><p>{transaction.category} • {new Date(transaction.date).toLocaleDateString()}</p></div>
                                                         <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
@@ -514,6 +525,7 @@
 
         function RecurringTab({ recurringPayments, setRecurringPayments, debts, setDebts, transactions, setTransactions, paidPayments, setPaidPayments, currentMonth }) {
             const [formData, setFormData] = useState({ name: '', amount: '', category: '', dueDay: '1', linkedDebt: '', auto: false });
+            const [editingPayment, setEditingPayment] = useState(null);
             const monthKey = getMonthKey(currentMonth);
 
             // Check if auto-pay should be marked as paid (due date has passed in financial month)
@@ -554,6 +566,15 @@
             };
 
             const deletePayment = (id) => setRecurringPayments(recurringPayments.filter(p => p.id !== id));
+            
+            const handleEdit = (payment) => {
+                setEditingPayment(payment);
+            };
+
+            const handleUpdate = (updatedPayment) => {
+                setRecurringPayments(recurringPayments.map(p => p.id === updatedPayment.id ? updatedPayment : p));
+                setEditingPayment(null);
+            };
             
             const processPayment = (payment) => {
                 const paymentKey = `${monthKey}-${payment.id}`;
@@ -621,6 +642,7 @@
                                                 <div className="item-amount negative">{formatCurrency(payment.amount)}</div>
                                                 {!isPaid && !payment.auto && <button onClick={() => processPayment(payment)} style={{padding: '8px 16px', fontSize: '0.9em'}}>Process</button>}
                                                 {!payment.auto && <button className={isPaid ? 'secondary' : 'success'} onClick={() => togglePaidStatus(payment.id)} style={{padding: '8px 16px', fontSize: '0.9em'}}>{isPaid ? 'Mark Unpaid' : 'Mark Paid'}</button>}
+                                                <button onClick={() => handleEdit(payment)} style={{padding: '8px 16px', fontSize: '0.9em'}}>Edit</button>
                                                 <button className="danger" onClick={() => deletePayment(payment.id)} style={{padding: '8px 16px', fontSize: '0.9em'}}>Delete</button>
                                             </div>
                                         </div>
@@ -628,6 +650,45 @@
                                 })
                             )}
                         </div>
+                    </div>
+                    {editingPayment && <EditRecurringPaymentModal payment={editingPayment} onUpdate={handleUpdate} onClose={() => setEditingPayment(null)} debts={debts} />}
+                </div>
+            );
+        }
+
+        function EditRecurringPaymentModal({ payment, onUpdate, onClose, debts }) {
+            const [formData, setFormData] = useState({ ...payment });
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                onUpdate({ ...formData, amount: parseFloat(formData.amount), dueDay: parseInt(formData.dueDay) });
+            };
+
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()}>
+                        <h2>Edit Recurring Payment</h2>
+                        <form onSubmit={handleSubmit}>
+                            <div className="form-row">
+                                <div className="form-group"><label>Payment Name</label><input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required /></div>
+                                <div className="form-group"><label>Amount</label><input type="number" step="0.01" value={formData.amount} onChange={(e) => setFormData({...formData, amount: e.target.value})} required /></div>
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group"><label>Category</label><input type="text" value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} /></div>
+                                <div className="form-group"><label>Due Day (1-31)</label><input type="number" min="1" max="31" value={formData.dueDay} onChange={(e) => setFormData({...formData, dueDay: e.target.value})} required /></div>
+                                <div className="form-group"><label>Link to Debt</label><select value={formData.linkedDebt || ''} onChange={(e) => setFormData({...formData, linkedDebt: e.target.value})}><option value="">None</option>{debts.map(debt => (<option key={debt.id} value={debt.id}>{debt.name}</option>))}</select></div>
+                            </div>
+                            <div className="form-group" style={{marginBottom: '0'}}>
+                                <label style={{display: 'flex', alignItems: 'center', cursor: 'pointer'}}>
+                                    <input type="checkbox" checked={formData.auto || false} onChange={(e) => setFormData({...formData, auto: e.target.checked})} style={{width: 'auto', marginRight: '10px'}} />
+                                    Auto-pay
+                                </label>
+                            </div>
+                            <div style={{display: 'flex', gap: '10px', marginTop: '20px'}}>
+                                <button type="submit">Save Changes</button>
+                                <button type="button" className="secondary" onClick={onClose}>Cancel</button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             );
