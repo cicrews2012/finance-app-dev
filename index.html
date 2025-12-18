@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.7.7</title>
+    <title>Finance Tracker v1.8.0</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -99,6 +99,10 @@
         const getMonthKey = (date) => { const d = new Date(date); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
 
         function FinanceTracker() {
+            // Predefined categories
+            const expenseCategories = ['Food', 'Groceries', 'Subscriptions', 'Home', 'Car Payments', 'Personal', 'Pets', 'Utilities', 'Gas (cars)', 'Debt', 'Insurance', 'Kids', 'Savings', 'House cleaning', 'Entertainment', 'Healthcare', 'Transportation', 'Other'];
+            const incomeCategories = ['Salary', 'Freelance', 'Investment', 'Gift', 'Bonus', 'Refund', 'Other'];
+            
             const [activeTab, setActiveTab] = useState('dashboard');
             const [transactions, setTransactions] = useState([]);
             const [recurringPayments, setRecurringPayments] = useState([]);
@@ -400,7 +404,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.7.7 | Full Prod/Beta Compatibility</div>
+                        <div className="version">v1.8.0 | Category Dropdown + Debt Logs + Recent Transactions</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -412,7 +416,7 @@
                     </div>
                     <div className="tab-content">
                         {activeTab === 'dashboard' && <DashboardTab totals={totals} totalDebt={totalDebt} unpaidRecurring={unpaidRecurring} currentMonth={currentMonth} transactions={transactions} recurringPayments={recurringPayments} debts={debts} />}
-                        {activeTab === 'transactions' && <TransactionsTab transactions={transactions} setTransactions={setTransactions} currentMonth={currentMonth} />}
+                        {activeTab === 'transactions' && <TransactionsTab transactions={transactions} setTransactions={setTransactions} currentMonth={currentMonth} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
                         {activeTab === 'recurring' && <RecurringTab recurringPayments={recurringPayments} setRecurringPayments={setRecurringPayments} debts={debts} setDebts={setDebts} transactions={transactions} setTransactions={setTransactions} paidPayments={paidPayments} setPaidPayments={setPaidPayments} currentMonth={currentMonth} />}
                         {activeTab === 'debts' && <DebtsTab debts={debts} setDebts={setDebts} />}
                         {activeTab === 'payoff' && <PayoffStrategiesTab debts={debts} />}
@@ -447,6 +451,24 @@
                         <div className="summary-card"><h3>Net Balance</h3><div className="amount">{formatCurrency(totals.net)}</div><div className="subtitle">{totals.income > 0 ? ((totals.net / totals.income) * 100).toFixed(1) : 0}% of income</div></div>
                         <div className="summary-card"><h3>Unpaid Recurring</h3><div className="amount">{formatCurrency(unpaidRecurring)}</div><div className="subtitle">Still due this month</div></div>
                     </div>
+                    {transactions.length > 0 && (
+                        <div className="section">
+                            <h2>Recent Transactions</h2>
+                            <div className="transaction-list">
+                                {transactions.slice().sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5).map(t => (
+                                    <div key={t.id} className={`transaction-item ${t.type}`}>
+                                        <div className="item-details">
+                                            <h4>{t.description}</h4>
+                                            <p>{t.category} • {new Date(t.date).toLocaleDateString()}</p>
+                                        </div>
+                                        <div className={`item-amount ${t.type === 'income' ? 'positive' : 'negative'}`}>
+                                            {t.type === 'income' ? '+' : '-'}{formatCurrency(parseFloat(t.amount))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                     {debts.length > 0 && (
                         <div className="section">
                             <h2>Debt Overview</h2>
@@ -474,7 +496,7 @@
             );
         }
 
-        function TransactionsTab({ transactions, setTransactions, currentMonth }) {
+        function TransactionsTab({ transactions, setTransactions, currentMonth, expenseCategories, incomeCategories }) {
             const [formData, setFormData] = useState({ type: 'expense', amount: '', description: '', category: '', date: new Date().toISOString().split('T')[0] });
             const [expandedMonths, setExpandedMonths] = useState({});
             const [selectedCategory, setSelectedCategory] = useState('All');
@@ -534,7 +556,15 @@
                             </div>
                             <div className="form-row">
                                 <div className="form-group"><label>Description</label><input type="text" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} placeholder="e.g., Grocery shopping" required /></div>
-                                <div className="form-group"><label>Category</label><input type="text" value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} placeholder="e.g., Food, Utilities" /></div>
+                                <div className="form-group">
+                                    <label>Category</label>
+                                    <select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} required>
+                                        <option value="">Select category</option>
+                                        {(formData.type === 'expense' ? expenseCategories : incomeCategories).map(cat => 
+                                            <option key={cat} value={cat}>{cat}</option>
+                                        )}
+                                    </select>
+                                </div>
                             </div>
                             <button type="submit">Add Transaction</button>
                         </form>
@@ -670,7 +700,35 @@
                 const newTransaction = { type: 'expense', amount: payment.amount, description: `${payment.name} (Recurring)`, category: payment.category, date: new Date().toISOString().split('T')[0], id: Date.now() };
                 setTransactions([...transactions, newTransaction]);
                 setPaidPayments({...paidPayments, [paymentKey]: true});
-                if (payment.linkedDebt) { setDebts(debts.map(debt => { if (debt.id === parseInt(payment.linkedDebt)) { const newBalance = debt.currentBalance - payment.amount; return { ...debt, currentBalance: Math.max(0, newBalance) }; } return debt; })); }
+                
+                if (payment.linkedDebt) { 
+                    setDebts(debts.map(debt => { 
+                        if (debt.id === parseInt(payment.linkedDebt)) { 
+                            const interestRate = parseFloat(debt.interestRate) || 0;
+                            const monthlyInterestRate = interestRate / 100 / 12;
+                            const interestAccrued = debt.currentBalance * monthlyInterestRate;
+                            const principalPaid = payment.amount - interestAccrued;
+                            const newBalance = Math.max(0, debt.currentBalance - principalPaid);
+                            
+                            const transactionLog = debt.transactionLog || [];
+                            const logEntry = {
+                                date: new Date().toISOString().split('T')[0],
+                                paymentAmount: payment.amount,
+                                interestAccrued: interestAccrued,
+                                principalPaid: principalPaid,
+                                balanceBefore: debt.currentBalance,
+                                balanceAfter: newBalance
+                            };
+                            
+                            return { 
+                                ...debt, 
+                                currentBalance: newBalance,
+                                transactionLog: [...transactionLog, logEntry]
+                            }; 
+                        } 
+                        return debt; 
+                    })); 
+                }
                 alert(`Payment processed: ${payment.name} for ${formatCurrency(payment.amount)}`);
             };
 
@@ -842,6 +900,37 @@
                                                         <label style={{display: 'block', marginBottom: '8px', fontSize: '0.9em'}}>Progress: {progressPercent.toFixed(1)}% paid off</label>
                                                         <div className="progress-bar"><div className="progress-fill" style={{width: `${Math.min(progressPercent, 100)}%`}}></div></div>
                                                     </div>
+                                                    {debt.transactionLog && debt.transactionLog.length > 0 && (
+                                                        <div style={{marginTop: '20px'}}>
+                                                            <h4 style={{color: '#667eea', marginBottom: '10px'}}>Transaction History</h4>
+                                                            <div style={{maxHeight: '300px', overflowY: 'auto'}}>
+                                                                {debt.transactionLog.slice().reverse().map((log, index) => (
+                                                                    <div key={index} style={{background: '#1a1f2e', padding: '12px', borderRadius: '8px', marginBottom: '8px', fontSize: '0.9em'}}>
+                                                                        <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '5px'}}>
+                                                                            <span style={{color: '#a0aec0'}}>Date:</span>
+                                                                            <span style={{color: '#e2e8f0', fontWeight: '600'}}>{new Date(log.date).toLocaleDateString()}</span>
+                                                                        </div>
+                                                                        <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '5px'}}>
+                                                                            <span style={{color: '#a0aec0'}}>Payment:</span>
+                                                                            <span style={{color: '#28a745', fontWeight: '600'}}>{formatCurrency(log.paymentAmount)}</span>
+                                                                        </div>
+                                                                        <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '5px'}}>
+                                                                            <span style={{color: '#a0aec0'}}>Interest Accrued:</span>
+                                                                            <span style={{color: '#dc3545', fontWeight: '600'}}>{formatCurrency(log.interestAccrued)}</span>
+                                                                        </div>
+                                                                        <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '5px'}}>
+                                                                            <span style={{color: '#a0aec0'}}>Principal Paid:</span>
+                                                                            <span style={{color: '#667eea', fontWeight: '600'}}>{formatCurrency(log.principalPaid)}</span>
+                                                                        </div>
+                                                                        <div style={{display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid #2d3748'}}>
+                                                                            <span style={{color: '#a0aec0'}}>Balance:</span>
+                                                                            <span style={{color: '#e2e8f0', fontWeight: '600'}}>{formatCurrency(log.balanceBefore)} → {formatCurrency(log.balanceAfter)}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                     <div style={{marginTop: '20px', display: 'flex', gap: '10px'}}>
                                                         <button className="danger" onClick={() => deleteDebt(debt.id)}>Delete Debt</button>
                                                     </div>
