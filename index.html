@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.8.0</title>
+    <title>Finance Tracker v1.8.1</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -94,6 +94,7 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
         const formatCurrency = (amount) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
+        const parseLocalDate = (dateStr) => { const [year, month, day] = dateStr.split('-').map(Number); return new Date(year, month - 1, day); };
         const getCurrentFinancialMonth = () => { const today = new Date(); const day = today.getDate(); const month = today.getMonth(); const year = today.getFullYear(); if (day >= 28) { return new Date(year, month + 1, 1); } else { return new Date(year, month, 1); } };
         const getFinancialMonthRange = (date) => { const month = date.getMonth(); const year = date.getFullYear(); const start = new Date(year, month - 1, 28); const end = new Date(year, month, 27, 23, 59, 59); return { start, end }; };
         const getMonthKey = (date) => { const d = new Date(date); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
@@ -170,7 +171,7 @@
                             if (t.type !== 'expense') return false;
                             
                             // Check if date is within current financial month
-                            const tDate = new Date(t.date);
+                            const tDate = parseLocalDate(t.date);
                             if (tDate < start || tDate > new Date(start.getFullYear(), start.getMonth() + 1, 27)) return false;
                             
                             // Check if amounts are similar (within $1)
@@ -208,19 +209,49 @@
                         // Mark as paid
                         newPaidPayments[paymentKey] = true;
                         hasChanges = true;
+                        
+                        // Update linked debt if exists
+                        if (payment.linkedDebt) {
+                            const linkedDebtIndex = debts.findIndex(d => d.id === parseInt(payment.linkedDebt));
+                            if (linkedDebtIndex !== -1) {
+                                const debt = debts[linkedDebtIndex];
+                                const interestRate = parseFloat(debt.interestRate) || 0;
+                                const monthlyInterestRate = interestRate / 100 / 12;
+                                const interestAccrued = debt.currentBalance * monthlyInterestRate;
+                                const principalPaid = payment.amount - interestAccrued;
+                                const newBalance = Math.max(0, debt.currentBalance - principalPaid);
+                                
+                                const transactionLog = debt.transactionLog || [];
+                                const logEntry = {
+                                    date: paymentDate.toISOString().split('T')[0],
+                                    paymentAmount: payment.amount,
+                                    interestAccrued: interestAccrued,
+                                    principalPaid: principalPaid,
+                                    balanceBefore: debt.currentBalance,
+                                    balanceAfter: newBalance
+                                };
+                                
+                                debts[linkedDebtIndex] = {
+                                    ...debt,
+                                    currentBalance: newBalance,
+                                    transactionLog: [...transactionLog, logEntry]
+                                };
+                            }
+                        }
                     }
                 });
                 
                 if (hasChanges) {
                     setTransactions(newTransactions);
                     setPaidPayments(newPaidPayments);
+                    setDebts([...debts]); // Save updated debts
                 }
             }, [currentMonth]); // Only run on month change, not on every state update
 
             const getMonthlyTotals = () => {
                 const { start, end } = getFinancialMonthRange(currentMonth);
                 
-                const monthlyTransactions = transactions.filter(t => { const tDate = new Date(t.date); return tDate >= start && tDate <= end; });
+                const monthlyTransactions = transactions.filter(t => { const tDate = parseLocalDate(t.date); return tDate >= start && tDate <= end; });
                 const income = monthlyTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + parseFloat(t.amount), 0);
                 const expenses = monthlyTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + parseFloat(t.amount), 0);
                 
@@ -259,8 +290,8 @@
                     transactions: transactions.map(t => ({
                         ...t,
                         // Preserve extra fields if they exist
-                        month: t.month || new Date(t.date).getMonth(),
-                        year: t.year || new Date(t.date).getFullYear(),
+                        month: t.month || parseLocalDate(t.date).getMonth(),
+                        year: t.year || parseLocalDate(t.date).getFullYear(),
                         financialMonth: t.financialMonth,
                         financialYear: t.financialYear
                     })),
@@ -404,7 +435,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.8.0 | Category Dropdown + Debt Logs + Recent Transactions</div>
+                        <div className="version">v1.8.1 | Fix: Date Display + Auto Debt Logging</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -431,7 +462,7 @@
             const { start, end } = getFinancialMonthRange(currentMonth);
             const getYearlyTotals = () => {
                 const currentYear = new Date().getFullYear();
-                const yearlyTransactions = transactions.filter(t => { const tDate = new Date(t.date); return tDate.getFullYear() === currentYear; });
+                const yearlyTransactions = transactions.filter(t => { const tDate = parseLocalDate(t.date); return tDate.getFullYear() === currentYear; });
                 const income = yearlyTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + parseFloat(t.amount), 0);
                 const expenses = yearlyTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + parseFloat(t.amount), 0);
                 return { income, expenses, net: income - expenses, year: currentYear };
@@ -459,7 +490,7 @@
                                     <div key={t.id} className={`transaction-item ${t.type}`}>
                                         <div className="item-details">
                                             <h4>{t.description}</h4>
-                                            <p>{t.category} • {new Date(t.date).toLocaleDateString()}</p>
+                                            <p>{t.category} • {t.date}</p>
                                         </div>
                                         <div className={`item-amount ${t.type === 'income' ? 'positive' : 'negative'}`}>
                                             {t.type === 'income' ? '+' : '-'}{formatCurrency(parseFloat(t.amount))}
@@ -527,7 +558,7 @@
                 const grouped = {};
                 const filteredTransactions = filterTransactionsByCategory(transactions);
                 filteredTransactions.forEach(transaction => {
-                    const date = new Date(transaction.date);
+                    const date = parseLocalDate(transaction.date);
                     const day = date.getDate();
                     let financialMonth, financialYear;
                     if (day >= 28) { financialMonth = date.getMonth() + 1; financialYear = date.getFullYear(); if (financialMonth > 11) { financialMonth = 0; financialYear++; } } else { financialMonth = date.getMonth(); financialYear = date.getFullYear(); }
@@ -590,7 +621,7 @@
                                             <div className="transaction-list">
                                                 {[...data.transactions].sort((a, b) => new Date(b.date) - new Date(a.date)).map((transaction) => (
                                                     <div key={transaction.id} className={`transaction-item ${transaction.type}`}>
-                                                        <div className="item-details"><h4>{transaction.description}</h4><p>{transaction.category} • {new Date(transaction.date).toLocaleDateString()}</p></div>
+                                                        <div className="item-details"><h4>{transaction.description}</h4><p>{transaction.category} • {transaction.date}</p></div>
                                                         <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
                                                             <div className={`item-amount ${transaction.type === 'income' ? 'positive' : 'negative'}`}>{transaction.type === 'income' ? '+' : '-'}{formatCurrency(Math.abs(parseFloat(transaction.amount) || 0))}</div>
                                                             <button onClick={() => handleEdit(transaction)} style={{padding: '8px 16px', fontSize: '0.9em'}}>Edit</button>
