@@ -680,24 +680,34 @@
                             // Parse and validate recurring payments
                             if (data.recurringPayments) {
                                 const validPayments = data.recurringPayments.map(p => ({
-                                    ...p,
+                                    name: p.name,
                                     amount: parseFloat(p.amount) || 0,
-                                    dueDay: parseInt(p.dueDay) || 1,
+                                    category: p.category || '',
+                                    dueDay: parseInt(p.dueDay || p.day) || 1,
+                                    linkedDebt: p.linkedDebt || '',
                                     id: p.id || Date.now() + Math.random()
                                 }));
                                 setRecurringPayments(validPayments);
                             }
                             
-                            // Parse and validate debts
+                            // Parse and validate debts - handle BOTH old and new formats
                             if (data.debts) {
-                                const validDebts = data.debts.map(d => ({
-                                    ...d,
-                                    originalBalance: parseFloat(d.originalBalance) || parseFloat(d.currentBalance) || 0,
-                                    currentBalance: parseFloat(d.currentBalance) || 0,
-                                    interestRate: parseFloat(d.interestRate) || 0,
-                                    minimumPayment: parseFloat(d.minimumPayment) || 0,
-                                    id: d.id || Date.now() + Math.random()
-                                }));
+                                const validDebts = data.debts.map(d => {
+                                    // Old format uses: balance, apr, payment
+                                    // New format uses: currentBalance, interestRate, minimumPayment
+                                    const currentBalance = parseFloat(d.currentBalance || d.balance) || 0;
+                                    const originalBalance = parseFloat(d.originalBalance) || currentBalance;
+                                    
+                                    return {
+                                        name: d.name,
+                                        originalBalance: originalBalance,
+                                        currentBalance: currentBalance,
+                                        interestRate: parseFloat(d.interestRate || d.apr) || 0,
+                                        minimumPayment: parseFloat(d.minimumPayment || d.payment) || 0,
+                                        category: d.category || 'Other',
+                                        id: d.id || Date.now() + Math.random()
+                                    };
+                                });
                                 setDebts(validDebts);
                             }
                             
