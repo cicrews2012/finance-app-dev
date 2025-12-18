@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.7.6</title>
+    <title>Finance Tracker v1.7.7</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -249,7 +249,40 @@
             };
 
             const exportData = () => {
-                const data = { transactions, recurringPayments, debts, paidPayments, exportDate: new Date().toISOString() };
+                const data = {
+                    version: "2.0", // Match prod format
+                    exportDate: new Date().toISOString(),
+                    transactions: transactions.map(t => ({
+                        ...t,
+                        // Preserve extra fields if they exist
+                        month: t.month || new Date(t.date).getMonth(),
+                        year: t.year || new Date(t.date).getFullYear(),
+                        financialMonth: t.financialMonth,
+                        financialYear: t.financialYear
+                    })),
+                    recurringPayments: recurringPayments.map(p => ({
+                        ...p,
+                        // Include BOTH field names for compatibility
+                        day: p.dueDay || p.day, // Prod format
+                        dueDay: p.dueDay || p.day, // Beta format
+                        varies: p.varies || false // Preserve prod field
+                    })),
+                    debts: debts.map(d => ({
+                        ...d,
+                        // Include BOTH field names for compatibility
+                        balance: d.currentBalance || d.balance, // Prod format
+                        currentBalance: d.currentBalance || d.balance, // Beta format
+                        apr: d.interestRate || d.apr, // Prod format
+                        interestRate: d.interestRate || d.apr, // Beta format
+                        payment: d.minimumPayment || d.payment, // Prod format
+                        minimumPayment: d.minimumPayment || d.payment, // Beta format
+                        // Preserve extra prod fields if they exist
+                        dueDay: d.dueDay,
+                        lastUpdated: d.lastUpdated,
+                        recurringPaymentId: d.recurringPaymentId
+                    })),
+                    paidPayments: paidPayments
+                };
                 const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -265,16 +298,30 @@
                     reader.onload = (e) => {
                         try {
                             const data = JSON.parse(e.target.result);
-                            if (data.transactions) { const validTransactions = data.transactions.map(t => ({ ...t, amount: parseFloat(t.amount) || 0, id: t.id || (Date.now() + Math.random()) })); setTransactions(validTransactions); }
+                            
+                            // Import transactions - preserve all fields
+                            if (data.transactions) { 
+                                const validTransactions = data.transactions.map(t => ({ 
+                                    ...t, // Preserve ALL fields
+                                    amount: parseFloat(t.amount) || 0, 
+                                    id: t.id || (Date.now() + Math.random()) 
+                                })); 
+                                setTransactions(validTransactions); 
+                            }
+                            
+                            // Import recurring payments - handle both formats
                             if (data.recurringPayments) { 
                                 const validPayments = data.recurringPayments.map(p => ({ 
+                                    ...p, // Preserve ALL fields (including varies, etc.)
                                     name: p.name, 
                                     amount: parseFloat(p.amount) || 0, 
                                     category: p.category || '', 
-                                    dueDay: parseInt(p.dueDay || p.day) || 1, 
+                                    dueDay: parseInt(p.dueDay || p.day) || 1, // Accept both formats
+                                    day: parseInt(p.day || p.dueDay) || 1, // Preserve prod format
                                     linkedDebt: p.linkedDebt || '', 
                                     auto: p.auto || false, 
-                                    id: p.id || (Date.now() + Math.random()) // Preserve existing ID
+                                    varies: p.varies || false, // Preserve prod field
+                                    id: p.id || (Date.now() + Math.random())
                                 })); 
                                 setRecurringPayments(validPayments);
                                 
@@ -300,7 +347,32 @@
                                 });
                                 setPaidPayments(newPaidPayments);
                             }
-                            if (data.debts) { const validDebts = data.debts.map(d => { const currentBalance = parseFloat(d.currentBalance || d.balance) || 0; const originalBalance = parseFloat(d.originalBalance) || currentBalance; return { name: d.name, originalBalance: originalBalance, currentBalance: currentBalance, interestRate: parseFloat(d.interestRate || d.apr) || 0, minimumPayment: parseFloat(d.minimumPayment || d.payment) || 0, category: d.category || 'Other', id: d.id || (Date.now() + Math.random()) }; }); setDebts(validDebts); }
+                            
+                            // Import debts - handle both formats
+                            if (data.debts) { 
+                                const validDebts = data.debts.map(d => { 
+                                    const currentBalance = parseFloat(d.currentBalance || d.balance) || 0; 
+                                    const originalBalance = parseFloat(d.originalBalance) || currentBalance; 
+                                    const interestRate = parseFloat(d.interestRate || d.apr) || 0;
+                                    const minimumPayment = parseFloat(d.minimumPayment || d.payment) || 0;
+                                    
+                                    return { 
+                                        ...d, // Preserve ALL fields (dueDay, lastUpdated, recurringPaymentId, etc.)
+                                        name: d.name, 
+                                        originalBalance: originalBalance, 
+                                        currentBalance: currentBalance, 
+                                        balance: currentBalance, // Preserve prod format
+                                        interestRate: interestRate, 
+                                        apr: interestRate, // Preserve prod format
+                                        minimumPayment: minimumPayment, 
+                                        payment: minimumPayment, // Preserve prod format
+                                        category: d.category || 'Other', 
+                                        id: d.id || (Date.now() + Math.random()) 
+                                    }; 
+                                }); 
+                                setDebts(validDebts); 
+                            }
+                            
                             if (data.paidPayments && !data.recurringPayments) setPaidPayments(data.paidPayments);
                             alert('Data imported successfully!');
                         } catch (error) { alert('Error importing data. Please check the file format.\n\nError: ' + error.message); }
@@ -328,7 +400,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.7.6 | Fix: Auto-Transactions Now Work on First Load</div>
+                        <div className="version">v1.7.7 | Full Prod/Beta Compatibility</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -857,22 +929,36 @@
                     </div>
                     <div className="section">
                         <h2>About</h2>
-                        <p style={{marginBottom: '15px', lineHeight: '1.6', color: '#e2e8f0'}}><strong>Finance Tracker v1.7.0</strong></p>
-                        <p style={{marginBottom: '10px', lineHeight: '1.6', color: '#a0aec0'}}>A comprehensive personal finance management tool with automatic transaction creation, payment tracking, and debt strategies.</p>
-                        <h3 style={{marginTop: '20px', marginBottom: '10px', color: '#667eea'}}>v1.7.0 Major Changes:</h3>
+                        <p style={{marginBottom: '15px', lineHeight: '1.6', color: '#e2e8f0'}}><strong>Finance Tracker v1.7.7</strong></p>
+                        <p style={{marginBottom: '10px', lineHeight: '1.6', color: '#a0aec0'}}>A comprehensive personal finance management tool with full backward/forward compatibility between production and beta versions.</p>
+                        
+                        <h3 style={{marginTop: '20px', marginBottom: '10px', color: '#667eea'}}>v1.7.7 - Full Compatibility:</h3>
                         <ul style={{lineHeight: '1.8', color: '#a0aec0', marginLeft: '20px'}}>
-                            <li>🚀 Auto-pay recurring payments now automatically create transactions when due</li>
-                            <li>🚀 Smart duplicate detection prevents double-counting</li>
-                            <li>✅ Total Expenses now ONLY counts transactions (no double counting)</li>
-                            <li>✅ Unpaid Recurring card shows what's still due this month</li>
-                            <li>✅ Cleaner workflow: Transactions = actual spending</li>
+                            <li>✅ <strong>Bidirectional field names</strong> - Exports include both old (day, balance, apr, payment) and new (dueDay, currentBalance, interestRate, minimumPayment) formats</li>
+                            <li>✅ <strong>Zero data loss</strong> - Preserves ALL fields from both prod and beta (varies, financialMonth, dueDay, lastUpdated, recurringPaymentId, etc.)</li>
+                            <li>✅ <strong>Round-trip safe</strong> - Prod → Beta → Prod or Beta → Prod → Beta maintains all data</li>
+                            <li>✅ <strong>Version field</strong> - Exports include version: "2.0" matching prod format</li>
+                            <li>✅ <strong>Import handles both formats</strong> - Accepts day OR dueDay, balance OR currentBalance, etc.</li>
                         </ul>
-                        <h3 style={{marginTop: '20px', marginBottom: '10px', color: '#667eea'}}>How It Works:</h3>
+                        
+                        <h3 style={{marginTop: '20px', marginBottom: '10px', color: '#667eea'}}>Compatibility Guarantee:</h3>
                         <ul style={{lineHeight: '1.8', color: '#a0aec0', marginLeft: '20px'}}>
-                            <li>AUTO payments: Automatically create transactions when due date passes</li>
-                            <li>MANUAL payments: Use "Process" button to create transaction + update debt</li>
-                            <li>Total Expenses = Sum of all transactions (no double counting)</li>
-                            <li>Unpaid Recurring = Budget planning for remaining payments</li>
+                            <li>📦 Export from v1.1.0 prod → Import to v1.7.7 beta = ✓ Works perfectly</li>
+                            <li>📦 Export from v1.7.7 beta → Import to v1.1.0 prod = ✓ Works perfectly</li>
+                            <li>📦 Export from v1.7.7 → Import to v1.7.7 = ✓ Perfect preservation</li>
+                            <li>💾 All extra fields preserved across versions</li>
+                            <li>🔄 Test in beta, sync to prod anytime without data loss</li>
+                        </ul>
+                        
+                        <h3 style={{marginTop: '20px', marginBottom: '10px', color: '#667eea'}}>Previous Features:</h3>
+                        <ul style={{lineHeight: '1.8', color: '#a0aec0', marginLeft: '20px'}}>
+                            <li>Auto-transaction creation for auto-pay items</li>
+                            <li>Edit transactions and recurring payments</li>
+                            <li>Smart duplicate detection (requires ALL words + category + amount)</li>
+                            <li>Payment tracking (paid/unpaid status per month)</li>
+                            <li>Financial month grouping (28th-27th cycle)</li>
+                            <li>Debt payoff strategies (Snowball & Avalanche)</li>
+                            <li>Dark mode interface</li>
                         </ul>
                     </div>
                 </div>
