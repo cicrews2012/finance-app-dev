@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.6.0</title>
+    <title>Finance Tracker v1.6.1</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -140,9 +140,9 @@
                     if (p.auto) {
                         let paymentDate;
                         if (p.dueDay >= 28) {
-                            paymentDate = new Date(start.getFullYear(), start.getMonth() - 1, p.dueDay);
-                        } else {
                             paymentDate = new Date(start.getFullYear(), start.getMonth(), p.dueDay);
+                        } else {
+                            paymentDate = new Date(start.getFullYear(), start.getMonth() + 1, p.dueDay);
                         }
                         return today >= paymentDate;
                     }
@@ -166,9 +166,9 @@
                     if (p.auto) {
                         let paymentDate;
                         if (p.dueDay >= 28) {
-                            paymentDate = new Date(start.getFullYear(), start.getMonth() - 1, p.dueDay);
-                        } else {
                             paymentDate = new Date(start.getFullYear(), start.getMonth(), p.dueDay);
+                        } else {
+                            paymentDate = new Date(start.getFullYear(), start.getMonth() + 1, p.dueDay);
                         }
                         return today < paymentDate;
                     }
@@ -216,9 +216,9 @@
                                     if (p.auto) {
                                         let paymentDate;
                                         if (p.dueDay >= 28) {
-                                            paymentDate = new Date(start.getFullYear(), start.getMonth() - 1, p.dueDay);
-                                        } else {
                                             paymentDate = new Date(start.getFullYear(), start.getMonth(), p.dueDay);
+                                        } else {
+                                            paymentDate = new Date(start.getFullYear(), start.getMonth() + 1, p.dueDay);
                                         }
                                         if (today >= paymentDate) {
                                             newPaidPayments[`${monthKey}-${p.id}`] = true;
@@ -255,7 +255,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.6.0 | Edit Transactions + Payment Tracking</div>
+                        <div className="version">v1.6.1 | Bug Fix: Date Calculations</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -482,10 +482,10 @@
                 let paymentDate;
                 if (payment.dueDay >= 28) {
                     // Days 28-31 are at the START of the financial month (previous calendar month)
-                    paymentDate = new Date(start.getFullYear(), start.getMonth() - 1, payment.dueDay);
-                } else {
-                    // Days 1-27 are in the current calendar month
                     paymentDate = new Date(start.getFullYear(), start.getMonth(), payment.dueDay);
+                } else {
+                    // Days 1-27 are in the NEXT calendar month after start
+                    paymentDate = new Date(start.getFullYear(), start.getMonth() + 1, payment.dueDay);
                 }
                 
                 // Payment is paid if today >= payment date
@@ -734,15 +734,23 @@
                     </div>
                     <div className="section">
                         <h2>About</h2>
-                        <p style={{marginBottom: '15px', lineHeight: '1.6', color: '#e2e8f0'}}><strong>Finance Tracker v1.6.0</strong></p>
+                        <p style={{marginBottom: '15px', lineHeight: '1.6', color: '#e2e8f0'}}><strong>Finance Tracker v1.6.1</strong></p>
                         <p style={{marginBottom: '10px', lineHeight: '1.6', color: '#a0aec0'}}>A comprehensive personal finance management tool with transaction editing, payment tracking, and debt strategies.</p>
+                        <h3 style={{marginTop: '20px', marginBottom: '10px', color: '#667eea'}}>v1.6.1 Bug Fixes:</h3>
+                        <ul style={{lineHeight: '1.8', color: '#a0aec0', marginLeft: '20px'}}>
+                            <li>🐛 Fixed financial month date calculations for auto-pay</li>
+                            <li>🐛 Days 1-27 now correctly use current calendar month</li>
+                            <li>🐛 Days 28-31 correctly use previous calendar month</li>
+                            <li>✅ Total Expenses now accurately reflects only PAID recurring payments</li>
+                        </ul>
                         <h3 style={{marginTop: '20px', marginBottom: '10px', color: '#667eea'}}>v1.6.0 Features:</h3>
                         <ul style={{lineHeight: '1.8', color: '#a0aec0', marginLeft: '20px'}}>
                             <li>✅ Edit transactions with modal dialog</li>
                             <li>✅ Track recurring payment status (paid/unpaid)</li>
                             <li>✅ Visual indicators for paid payments</li>
                             <li>✅ Auto-pay flag for recurring payments</li>
-                            <li>✅ Corrected net balance (only counts PAID recurring payments)</li>
+                            <li>✅ Dashboard shows unpaid recurring payments</li>
+                            <li>✅ Total amounts in Recurring and Debt tabs</li>
                             <li>Yearly income/expense totals on dashboard</li>
                             <li>Category filters in transaction history</li>
                             <li>Financial month grouping (28th-27th cycle)</li>
