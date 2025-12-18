@@ -128,7 +128,16 @@
                 const monthlyTransactions = transactions.filter(t => { const tDate = new Date(t.date); return tDate >= start && tDate <= end; });
                 const income = monthlyTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + parseFloat(t.amount), 0);
                 const expenses = monthlyTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + parseFloat(t.amount), 0);
-                const paidRecurringTotal = recurringPayments.filter(p => paidPayments[`${monthKey}-${p.id}`]).reduce((sum, p) => sum + parseFloat(p.amount), 0);
+                
+                // Calculate paid recurring payments (manual OR auto if due date passed)
+                const today = new Date();
+                const currentDay = today.getDate();
+                const paidRecurringTotal = recurringPayments.filter(p => {
+                    const isManuallyPaid = paidPayments[`${monthKey}-${p.id}`];
+                    const isAutoPaid = p.auto && currentDay >= p.dueDay;
+                    return isManuallyPaid || isAutoPaid;
+                }).reduce((sum, p) => sum + parseFloat(p.amount), 0);
+                
                 return { income, expenses: expenses + paidRecurringTotal, net: income - (expenses + paidRecurringTotal) };
             };
 
@@ -164,11 +173,13 @@
                                 })); 
                                 setRecurringPayments(validPayments);
                                 
-                                // Auto-mark auto-pay items as paid for current month
+                                // Auto-mark auto-pay items as paid ONLY if due date has passed
                                 const monthKey = getMonthKey(currentMonth);
+                                const today = new Date();
+                                const currentDay = today.getDate();
                                 const newPaidPayments = {...(data.paidPayments || {})};
                                 validPayments.forEach(p => {
-                                    if (p.auto) {
+                                    if (p.auto && currentDay >= p.dueDay) {
                                         newPaidPayments[`${monthKey}-${p.id}`] = true;
                                     }
                                 });
@@ -417,14 +428,22 @@
             const [formData, setFormData] = useState({ name: '', amount: '', category: '', dueDay: '1', linkedDebt: '', auto: false });
             const monthKey = getMonthKey(currentMonth);
 
+            // Check if auto-pay should be marked as paid (due date has passed)
+            const shouldAutoPayBePaid = (payment) => {
+                if (!payment.auto) return false;
+                const today = new Date();
+                const currentDay = today.getDate();
+                return currentDay >= payment.dueDay;
+            };
+
             const handleSubmit = (e) => { 
                 e.preventDefault(); 
                 if (formData.name && formData.amount) { 
                     const newPayment = { ...formData, amount: parseFloat(formData.amount), dueDay: parseInt(formData.dueDay), id: Date.now() };
                     setRecurringPayments([...recurringPayments, newPayment]); 
                     
-                    // Auto-pay: automatically mark as paid
-                    if (formData.auto) {
+                    // Auto-pay: mark as paid if due date has already passed this month
+                    if (formData.auto && shouldAutoPayBePaid(newPayment)) {
                         const paymentKey = `${monthKey}-${newPayment.id}`;
                         setPaidPayments({...paidPayments, [paymentKey]: true});
                     }
@@ -466,7 +485,7 @@
                             <div className="form-group" style={{marginBottom: '0'}}>
                                 <label style={{display: 'flex', alignItems: 'center', cursor: 'pointer'}}>
                                     <input type="checkbox" checked={formData.auto} onChange={(e) => setFormData({...formData, auto: e.target.checked})} style={{width: 'auto', marginRight: '10px'}} />
-                                    Auto-pay (mark as paid automatically)
+                                    Auto-pay (mark as paid when due date passes)
                                 </label>
                             </div>
                             <button type="submit" style={{marginTop: '20px'}}>Add Recurring Payment</button>
@@ -480,7 +499,10 @@
                             ) : (
                                 recurringPayments.map((payment) => {
                                     const linkedDebt = payment.linkedDebt ? debts.find(d => d.id === parseInt(payment.linkedDebt)) : null;
-                                    const isPaid = paidPayments[`${monthKey}-${payment.id}`] || payment.auto;
+                                    const isManuallyPaid = paidPayments[`${monthKey}-${payment.id}`];
+                                    const isAutoPaid = payment.auto && shouldAutoPayBePaid(payment);
+                                    const isPaid = isManuallyPaid || isAutoPaid;
+                                    
                                     return (
                                         <div key={payment.id} className={`payment-item ${isPaid ? 'paid' : 'unpaid'}`}>
                                             <div className="item-details">
@@ -493,7 +515,7 @@
                                             </div>
                                             <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
                                                 <div className="item-amount negative">{formatCurrency(payment.amount)}</div>
-                                                {!isPaid && <button onClick={() => processPayment(payment)} style={{padding: '8px 16px', fontSize: '0.9em'}}>Process</button>}
+                                                {!isPaid && !payment.auto && <button onClick={() => processPayment(payment)} style={{padding: '8px 16px', fontSize: '0.9em'}}>Process</button>}
                                                 {!payment.auto && <button className={isPaid ? 'secondary' : 'success'} onClick={() => togglePaidStatus(payment.id)} style={{padding: '8px 16px', fontSize: '0.9em'}}>{isPaid ? 'Mark Unpaid' : 'Mark Paid'}</button>}
                                                 <button className="danger" onClick={() => deletePayment(payment.id)} style={{padding: '8px 16px', fontSize: '0.9em'}}>Delete</button>
                                             </div>
