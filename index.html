@@ -1050,6 +1050,8 @@
                 date: new Date().toISOString().split('T')[0]
             });
 
+            const [expandedMonths, setExpandedMonths] = useState({});
+
             const handleSubmit = (e) => {
                 e.preventDefault();
                 if (formData.amount && formData.description) {
@@ -1071,6 +1073,47 @@
             const deleteTransaction = (id) => {
                 setTransactions(transactions.filter(t => t.id !== id));
             };
+
+            const toggleMonth = (monthKey) => {
+                setExpandedMonths(prev => ({
+                    ...prev,
+                    [monthKey]: !prev[monthKey]
+                }));
+            };
+
+            // Group transactions by month
+            const groupTransactionsByMonth = () => {
+                const grouped = {};
+                
+                transactions.forEach(transaction => {
+                    const date = new Date(transaction.date);
+                    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                    const monthLabel = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                    
+                    if (!grouped[monthKey]) {
+                        grouped[monthKey] = {
+                            label: monthLabel,
+                            transactions: [],
+                            income: 0,
+                            expenses: 0
+                        };
+                    }
+                    
+                    grouped[monthKey].transactions.push(transaction);
+                    
+                    const amount = parseFloat(transaction.amount) || 0;
+                    if (transaction.type === 'income') {
+                        grouped[monthKey].income += amount;
+                    } else {
+                        grouped[monthKey].expenses += amount;
+                    }
+                });
+
+                // Sort by month (newest first)
+                return Object.entries(grouped).sort((a, b) => b[0].localeCompare(a[0]));
+            };
+
+            const monthlyGroups = groupTransactionsByMonth();
 
             return (
                 <div>
@@ -1136,34 +1179,59 @@
 
                     <div className="section">
                         <h2>Transaction History</h2>
-                        <div className="transaction-list">
-                            {transactions.length === 0 ? (
-                                <p style={{color: '#6c757d', textAlign: 'center', padding: '20px'}}>
-                                    No transactions yet.
-                                </p>
-                            ) : (
-                                [...transactions].reverse().map((transaction) => (
-                                    <div key={transaction.id} className={`transaction-item ${transaction.type}`}>
-                                        <div className="item-details">
-                                            <h4>{transaction.description}</h4>
-                                            <p>{transaction.category} • {new Date(transaction.date).toLocaleDateString()}</p>
+                        {monthlyGroups.length === 0 ? (
+                            <p style={{color: '#6c757d', textAlign: 'center', padding: '20px'}}>
+                                No transactions yet.
+                            </p>
+                        ) : (
+                            monthlyGroups.map(([monthKey, data]) => (
+                                <div key={monthKey} className="collapsible-section">
+                                    <div 
+                                        className="collapsible-header"
+                                        onClick={() => toggleMonth(monthKey)}
+                                    >
+                                        <div>
+                                            <h3>{data.label}</h3>
+                                            <p style={{fontSize: '0.9em', marginTop: '5px', opacity: 0.9}}>
+                                                {data.transactions.length} transaction{data.transactions.length !== 1 ? 's' : ''} • 
+                                                Income: {formatCurrency(data.income)} • 
+                                                Expenses: {formatCurrency(data.expenses)}
+                                            </p>
                                         </div>
-                                        <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
-                                            <div className={`item-amount ${transaction.type === 'income' ? 'positive' : 'negative'}`}>
-                                                {transaction.type === 'income' ? '+' : '-'}{formatCurrency(Math.abs(transaction.amount))}
-                                            </div>
-                                            <button 
-                                                className="danger"
-                                                onClick={() => deleteTransaction(transaction.id)}
-                                                style={{padding: '8px 16px', fontSize: '0.9em'}}
-                                            >
-                                                Delete
-                                            </button>
+                                        <div style={{fontSize: '1.5em'}}>
+                                            {expandedMonths[monthKey] ? '▼' : '▶'}
                                         </div>
                                     </div>
-                                ))
-                            )}
-                        </div>
+                                    
+                                    {expandedMonths[monthKey] && (
+                                        <div className="collapsible-content">
+                                            <div className="transaction-list">
+                                                {[...data.transactions].reverse().map((transaction) => (
+                                                    <div key={transaction.id} className={`transaction-item ${transaction.type}`}>
+                                                        <div className="item-details">
+                                                            <h4>{transaction.description}</h4>
+                                                            <p>{transaction.category} • {new Date(transaction.date).toLocaleDateString()}</p>
+                                                        </div>
+                                                        <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
+                                                            <div className={`item-amount ${transaction.type === 'income' ? 'positive' : 'negative'}`}>
+                                                                {transaction.type === 'income' ? '+' : '-'}{formatCurrency(Math.abs(parseFloat(transaction.amount) || 0))}
+                                                            </div>
+                                                            <button 
+                                                                className="danger"
+                                                                onClick={() => deleteTransaction(transaction.id)}
+                                                                style={{padding: '8px 16px', fontSize: '0.9em'}}
+                                                            >
+                                                                Delete
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
             );
