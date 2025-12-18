@@ -1146,8 +1146,28 @@
                 
                 transactions.forEach(transaction => {
                     const date = new Date(transaction.date);
-                    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-                    const monthLabel = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                    
+                    // Determine which financial month this belongs to
+                    // Financial month runs from 28th to 27th
+                    const day = date.getDate();
+                    let financialMonth, financialYear;
+                    
+                    if (day >= 28) {
+                        // If day is 28 or later, it belongs to NEXT month's cycle
+                        financialMonth = date.getMonth() + 1;
+                        financialYear = date.getFullYear();
+                        if (financialMonth > 11) {
+                            financialMonth = 0;
+                            financialYear++;
+                        }
+                    } else {
+                        // If day is before 28th, it belongs to current month's cycle
+                        financialMonth = date.getMonth();
+                        financialYear = date.getFullYear();
+                    }
+                    
+                    const monthKey = `${financialYear}-${String(financialMonth + 1).padStart(2, '0')}`;
+                    const monthLabel = new Date(financialYear, financialMonth, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
                     
                     if (!grouped[monthKey]) {
                         grouped[monthKey] = {
