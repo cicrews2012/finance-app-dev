@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.9.1</title>
+    <title>Finance Tracker v1.9.2</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -432,7 +432,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.9.1 | No localStorage - Pure JSON Import/Export (JSX Fix)</div>
+                        <div className="version">v1.9.2 | No localStorage - Pure JSON (Arrow Fix)</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -1022,7 +1022,7 @@
                                                                         </div>
                                                                         <div style={{display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid #2d3748'}}>
                                                                             <span style={{color: '#a0aec0'}}>Balance:</span>
-                                                                            <span style={{color: '#e2e8f0', fontWeight: '600'}}>{formatCurrency(log.balanceBefore)} {'→'} {formatCurrency(log.balanceAfter)}</span>
+                                                                            <span style={{color: '#e2e8f0', fontWeight: '600'}}>{formatCurrency(log.balanceBefore)} &rarr; {formatCurrency(log.balanceAfter)}</span>
                                                                         </div>
                                                                     </div>
                                                                 ))}
