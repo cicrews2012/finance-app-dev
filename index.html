@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.9.4</title>
+    <title>Finance Tracker v1.9.5</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -432,7 +432,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.9.4 | No localStorage - Pure JSON</div>
+                        <div className="version">v1.9.5 | No localStorage - Working!</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -1119,7 +1119,7 @@
                                 <li><strong style={{color: '#e2e8f0'}}>Next time:</strong> Import the latest export to continue</li>
                             </ol>
                         </div>
-                        <p style={{color: '#ffc107', fontSize: '0.95em', marginTop: '15px', fontWeight: 600'}}>
+                        <p style={{color: '#ffc107', fontSize: '0.95em', marginTop: '15px', fontWeight: '600'}}>
                             ⚠️ Closing/refreshing the page without exporting = data is lost!
                         </p>
                     </div>
