@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.8.7</title>
+    <title>Finance Tracker v1.8.8</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -110,7 +110,6 @@
             const [debts, setDebts] = useState([]);
             const [paidPayments, setPaidPayments] = useState({});
             const [currentMonth, setCurrentMonth] = useState(getCurrentFinancialMonth());
-            const isMounted = useRef(false);
 
             useEffect(() => {
                 const savedTransactions = localStorage.getItem('transactions');
@@ -130,23 +129,19 @@
 
             // Auto-process recurring payments when their due date passes
             useEffect(() => {
-                // Skip on initial mount (during data load/import)
-                if (!isMounted.current) {
-                    isMounted.current = true;
-                    return;
-                }
-                
-                if (recurringPayments.length === 0) return;
-                
-                const monthKey = getMonthKey(currentMonth);
-                const today = new Date();
-                const { start } = getFinancialMonthRange(currentMonth);
-                
-                let newTransactions = [...transactions];
-                let newPaidPayments = {...paidPayments};
-                let hasChanges = false;
-                
-                recurringPayments.forEach(payment => {
+                // Small delay to let data load, then run auto-process
+                const timer = setTimeout(() => {
+                    if (recurringPayments.length === 0) return;
+                    
+                    const monthKey = getMonthKey(currentMonth);
+                    const today = new Date();
+                    const { start } = getFinancialMonthRange(currentMonth);
+                    
+                    let newTransactions = [...transactions];
+                    let newPaidPayments = {...paidPayments};
+                    let hasChanges = false;
+                    
+                    recurringPayments.forEach(payment => {
                     // Skip if not auto-pay
                     if (!payment.auto) return;
                     
@@ -244,6 +239,9 @@
                     setPaidPayments(newPaidPayments);
                     setDebts([...debts]); // Save updated debts
                 }
+                }, 500); // Wait 500ms for data to load
+                
+                return () => clearTimeout(timer); // Cleanup
             }, [currentMonth, transactions.length]); // Run on month change or when transaction count changes
 
             const getMonthlyTotals = () => {
@@ -433,7 +431,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.8.7 | Fix: Prevent Duplicate Creation on Load/Import</div>
+                        <div className="version">v1.8.8 | Fix: Auto-Pay Creates Transactions Same Day</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
