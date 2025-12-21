@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.10.0</title>
+    <title>Finance Tracker v1.10.1</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -462,7 +462,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.10.0 | Budget Tab + Money Available</div>
+                        <div className="version">v1.10.1 | Budget + Money Available (Fixed)</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -474,7 +474,7 @@
                         <button className={`tab-button ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>⚙️ Settings</button>
                     </div>
                     <div className="tab-content">
-                        {activeTab === 'dashboard' && <DashboardTab totals={totals} totalDebt={totalDebt} unpaidRecurring={unpaidRecurring} currentMonth={currentMonth} transactions={transactions} recurringPayments={recurringPayments} debts={debts} />}
+                        {activeTab === 'dashboard' && <DashboardTab totals={totals} totalDebt={totalDebt} unpaidRecurring={unpaidRecurring} currentMonth={currentMonth} transactions={transactions} recurringPayments={recurringPayments} debts={debts} expectedMonthlyIncome={expectedMonthlyIncome} />}
                         {activeTab === 'budget' && <BudgetTab transactions={transactions} recurringPayments={recurringPayments} expectedMonthlyIncome={expectedMonthlyIncome} setExpectedMonthlyIncome={setExpectedMonthlyIncome} currentMonth={currentMonth} />}
                         {activeTab === 'transactions' && <TransactionsTab transactions={transactions} setTransactions={setTransactions} currentMonth={currentMonth} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
                         {activeTab === 'recurring' && <RecurringTab recurringPayments={recurringPayments} setRecurringPayments={setRecurringPayments} debts={debts} setDebts={setDebts} transactions={transactions} setTransactions={setTransactions} paidPayments={paidPayments} setPaidPayments={setPaidPayments} currentMonth={currentMonth} />}
@@ -486,10 +486,66 @@
             );
         }
 
-        function DashboardTab({ totals, totalDebt, unpaidRecurring, currentMonth, transactions, recurringPayments, debts }) {
+        function DashboardTab({ totals, totalDebt, unpaidRecurring, currentMonth, transactions, recurringPayments, debts, expectedMonthlyIncome }) {
             const [debtsCollapsed, setDebtsCollapsed] = useState(false);
             const monthName = currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
             const { start, end } = getFinancialMonthRange(currentMonth);
+            
+            // Money Available calculation
+            
+            // Get transactions for current month
+            const monthTransactions = transactions.filter(t => {
+                const tDate = parseLocalDate(t.date);
+                return tDate >= start && tDate <= end;
+            });
+            
+            // Calculate recurring bills total for this month
+            const recurringTotal = recurringPayments
+                .filter(p => {
+                    let paymentDate;
+                    if (p.dueDay >= 28) {
+                        paymentDate = new Date(start.getFullYear(), start.getMonth(), p.dueDay);
+                    } else {
+                        paymentDate = new Date(start.getFullYear(), start.getMonth() + 1, p.dueDay);
+                    }
+                    return paymentDate >= start && paymentDate <= end;
+                })
+                .reduce((sum, p) => sum + parseFloat(p.amount), 0);
+            
+            const discretionaryBudget = expectedMonthlyIncome - recurringTotal;
+            
+            // Calculate discretionary spending (exclude transactions that match recurring payments)
+            const discretionarySpent = monthTransactions
+                .filter(t => {
+                    if (t.type !== 'expense') return false;
+                    if (t.isRecurring) return false;
+                    
+                    const matchesRecurring = recurringPayments.some(p => {
+                        const amountMatch = Math.abs(parseFloat(t.amount) - parseFloat(p.amount)) < 1.0;
+                        if (!amountMatch) return false;
+                        
+                        let paymentDate;
+                        if (p.dueDay >= 28) {
+                            paymentDate = new Date(start.getFullYear(), start.getMonth(), p.dueDay);
+                        } else {
+                            paymentDate = new Date(start.getFullYear(), start.getMonth() + 1, p.dueDay);
+                        }
+                        const isInPeriod = paymentDate >= start && paymentDate <= end;
+                        if (!isInPeriod) return false;
+                        
+                        if (p.category && t.category) {
+                            if (p.category.toLowerCase() !== t.category.toLowerCase()) return false;
+                        }
+                        
+                        return true;
+                    });
+                    
+                    return !matchesRecurring;
+                })
+                .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+            
+            const moneyAvailable = discretionaryBudget - discretionarySpent;
+            
             const getYearlyTotals = () => {
                 const currentYear = new Date().getFullYear();
                 const yearlyTransactions = transactions.filter(t => { const tDate = parseLocalDate(t.date); return tDate.getFullYear() === currentYear; });
@@ -536,6 +592,7 @@
                         <div className="summary-card"><h3>Total Income</h3><div className="amount">{formatCurrency(totals.income)}</div></div>
                         <div className="summary-card"><h3>Total Expenses</h3><div className="amount">{formatCurrency(totals.expenses)}</div><div className="subtitle">From transactions only</div></div>
                         <div className="summary-card"><h3>Net Balance</h3><div className="amount">{formatCurrency(totals.net)}</div><div className="subtitle">{totals.income > 0 ? ((totals.net / totals.income) * 100).toFixed(1) : 0}% of income</div></div>
+                        <div className="summary-card" style={{background: moneyAvailable >= 0 ? 'linear-gradient(135deg, #28a745 0%, #20c997 100%)' : 'linear-gradient(135deg, #dc3545 0%, #c92a2a 100%)'}}><h3>💰 Money Available</h3><div className="amount">{formatCurrency(moneyAvailable)}</div><div className="subtitle">After bills & spending</div></div>
                         <div className="summary-card"><h3>Unpaid Recurring</h3><div className="amount">{formatCurrency(unpaidRecurring)}</div><div className="subtitle">Still due this month</div></div>
                     </div>
                     {transactions.length > 0 && (
@@ -1173,9 +1230,38 @@
             // Calculate discretionary budget
             const discretionaryBudget = expectedMonthlyIncome - recurringTotal;
 
-            // Calculate discretionary spending (exclude recurring transactions)
+            // Calculate discretionary spending (exclude transactions that match recurring payments)
             const discretionarySpent = monthTransactions
-                .filter(t => t.type === 'expense' && !t.isRecurring)
+                .filter(t => {
+                    if (t.type !== 'expense') return false;
+                    if (t.isRecurring) return false; // Exclude if flagged as recurring
+                    
+                    // Check if this transaction matches any recurring payment
+                    const matchesRecurring = recurringPayments.some(p => {
+                        // Check if amounts match (within $1)
+                        const amountMatch = Math.abs(parseFloat(t.amount) - parseFloat(p.amount)) < 1.0;
+                        if (!amountMatch) return false;
+                        
+                        // Check if transaction is in the current month's payment period
+                        let paymentDate;
+                        if (p.dueDay >= 28) {
+                            paymentDate = new Date(start.getFullYear(), start.getMonth(), p.dueDay);
+                        } else {
+                            paymentDate = new Date(start.getFullYear(), start.getMonth() + 1, p.dueDay);
+                        }
+                        const isInPeriod = paymentDate >= start && paymentDate <= end;
+                        if (!isInPeriod) return false;
+                        
+                        // Check if categories match
+                        if (p.category && t.category) {
+                            if (p.category.toLowerCase() !== t.category.toLowerCase()) return false;
+                        }
+                        
+                        return true;
+                    });
+                    
+                    return !matchesRecurring; // Include only if it doesn't match recurring
+                })
                 .reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
             // Calculate remaining
