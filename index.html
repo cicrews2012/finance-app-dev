@@ -1251,13 +1251,18 @@
                         </div>
                         
                         <div className="budget-row" style={{borderTop: '2px solid #667eea', paddingTop: '15px', marginTop: '10px'}}>
-                            <span className="budget-label" style={{color: '#e2e8f0'}}>Money Left:</span>
+                            <span className="budget-label" style={{color: '#e2e8f0'}}>Money Left (for spending):</span>
                             <span className="budget-value">{formatCurrency(moneyLeft)}</span>
                         </div>
                         
                         <div className="budget-row">
-                            <span className="budget-label">Total Expenses:</span>
-                            <span className="budget-value negative">-{formatCurrency(totalExpenses)}</span>
+                            <span className="budget-label">Total Expenses (this month):</span>
+                            <span className="budget-value">{formatCurrency(totalExpenses)}</span>
+                        </div>
+                        
+                        <div className="budget-row">
+                            <span className="budget-label">Recurring Bills (this month):</span>
+                            <span className="budget-value">{formatCurrency(recurringTotal)}</span>
                         </div>
                         
                         <div className="budget-row">
