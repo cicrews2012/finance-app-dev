@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.10.1</title>
+    <title>Finance Tracker v1.10.2</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -462,7 +462,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.10.1 | Budget + Money Available (Fixed)</div>
+                        <div className="version">v1.10.2 | Budget + Unpaid Recurring in Remaining</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -475,7 +475,7 @@
                     </div>
                     <div className="tab-content">
                         {activeTab === 'dashboard' && <DashboardTab totals={totals} totalDebt={totalDebt} unpaidRecurring={unpaidRecurring} currentMonth={currentMonth} transactions={transactions} recurringPayments={recurringPayments} debts={debts} expectedMonthlyIncome={expectedMonthlyIncome} />}
-                        {activeTab === 'budget' && <BudgetTab transactions={transactions} recurringPayments={recurringPayments} expectedMonthlyIncome={expectedMonthlyIncome} setExpectedMonthlyIncome={setExpectedMonthlyIncome} currentMonth={currentMonth} />}
+                        {activeTab === 'budget' && <BudgetTab transactions={transactions} recurringPayments={recurringPayments} expectedMonthlyIncome={expectedMonthlyIncome} setExpectedMonthlyIncome={setExpectedMonthlyIncome} currentMonth={currentMonth} unpaidRecurring={unpaidRecurring} />}
                         {activeTab === 'transactions' && <TransactionsTab transactions={transactions} setTransactions={setTransactions} currentMonth={currentMonth} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
                         {activeTab === 'recurring' && <RecurringTab recurringPayments={recurringPayments} setRecurringPayments={setRecurringPayments} debts={debts} setDebts={setDebts} transactions={transactions} setTransactions={setTransactions} paidPayments={paidPayments} setPaidPayments={setPaidPayments} currentMonth={currentMonth} />}
                         {activeTab === 'debts' && <DebtsTab debts={debts} setDebts={setDebts} />}
@@ -510,8 +510,8 @@
             // Total Expenses - Recurring = Spent So Far
             const spentSoFar = totals.expenses - recurringTotal;
             
-            // Money Available = Money Left - Spent So Far
-            const moneyAvailable = moneyLeft - spentSoFar;
+            // Money Available = Money Left - Spent So Far - Unpaid Recurring (guaranteed to come out)
+            const moneyAvailable = moneyLeft - spentSoFar - unpaidRecurring;
             
             const getYearlyTotals = () => {
                 const currentYear = new Date().getFullYear();
@@ -1166,7 +1166,7 @@
             );
         }
 
-        function BudgetTab({ transactions, recurringPayments, expectedMonthlyIncome, setExpectedMonthlyIncome, currentMonth }) {
+        function BudgetTab({ transactions, recurringPayments, expectedMonthlyIncome, setExpectedMonthlyIncome, currentMonth, unpaidRecurring }) {
             const [tempIncome, setTempIncome] = useState(expectedMonthlyIncome);
             const { start, end } = getFinancialMonthRange(currentMonth);
             
@@ -1202,7 +1202,9 @@
             // Simple calculations
             const moneyLeft = expectedMonthlyIncome - recurringTotal;
             const spentSoFar = totalExpenses - recurringTotal;
-            const remaining = moneyLeft - spentSoFar;
+            
+            // Remaining = Money Left - Spent So Far - Unpaid Recurring (guaranteed to come out)
+            const remaining = moneyLeft - spentSoFar - unpaidRecurring;
 
             const handleSaveIncome = () => {
                 setExpectedMonthlyIncome(tempIncome);
@@ -1261,8 +1263,8 @@
                         </div>
                         
                         <div className="budget-row">
-                            <span className="budget-label">Recurring Bills (this month):</span>
-                            <span className="budget-value">{formatCurrency(recurringTotal)}</span>
+                            <span className="budget-label">Unpaid Recurring (still due):</span>
+                            <span className="budget-value warning">{formatCurrency(unpaidRecurring)}</span>
                         </div>
                         
                         <div className="budget-row">
@@ -1316,7 +1318,7 @@
                             <div>
                                 <strong style={{color: '#667eea'}}>Remaining Available:</strong>
                                 <p style={{color: '#a0aec0', fontSize: '0.9em', marginTop: '5px'}}>
-                                    Money Left - Spent So Far = How much you have left to spend this month.
+                                    Money Left - Spent So Far - Unpaid Recurring = How much you truly have left to spend (accounting for bills still due).
                                 </p>
                             </div>
                         </div>
