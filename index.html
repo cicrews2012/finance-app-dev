@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.10.2</title>
+    <title>Finance Tracker v1.10.3</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -462,7 +462,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.10.2 | Budget + Unpaid Recurring in Remaining</div>
+                        <div className="version">v1.10.3 | Budget - Expected vs Actual</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -1203,8 +1203,12 @@
             const moneyLeft = expectedMonthlyIncome - recurringTotal;
             const spentSoFar = totalExpenses - recurringTotal;
             
+            // Calculate with ACTUAL income received so far
+            const moneyLeftActual = actualIncome - recurringTotal;
+            
             // Remaining = Money Left - Spent So Far - Unpaid Recurring (guaranteed to come out)
-            const remaining = moneyLeft - spentSoFar - unpaidRecurring;
+            const remainingExpected = moneyLeft - spentSoFar - unpaidRecurring;
+            const remainingActual = moneyLeftActual - spentSoFar - unpaidRecurring;
 
             const handleSaveIncome = () => {
                 setExpectedMonthlyIncome(tempIncome);
@@ -1235,48 +1239,75 @@
                         <h2 style={{color: '#667eea', marginBottom: '25px', fontSize: '1.8em'}}>💰 Money Available This Month</h2>
                         <p style={{color: '#a0aec0', marginBottom: '20px', fontSize: '0.95em'}}>Current Month: {monthLabel}</p>
                         
-                        <div className="budget-row">
-                            <span className="budget-label">Expected Income:</span>
-                            <span className="budget-value">{formatCurrency(expectedMonthlyIncome)}</span>
+                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px'}}>
+                            <div style={{background: '#1a1f2e', padding: '20px', borderRadius: '10px', border: '2px solid #667eea'}}>
+                                <h3 style={{color: '#667eea', marginBottom: '15px', fontSize: '1.2em'}}>📊 EXPECTED (Budget)</h3>
+                                <div className="budget-row" style={{borderBottom: '1px solid #2d3748', paddingBottom: '10px'}}>
+                                    <span className="budget-label">Expected Income:</span>
+                                    <span className="budget-value" style={{fontSize: '1.1em'}}>{formatCurrency(expectedMonthlyIncome)}</span>
+                                </div>
+                                <div className="budget-row" style={{borderBottom: '1px solid #2d3748', paddingBottom: '10px'}}>
+                                    <span className="budget-label">Recurring Bills:</span>
+                                    <span className="budget-value negative" style={{fontSize: '1.1em'}}>-{formatCurrency(recurringTotal)}</span>
+                                </div>
+                                <div className="budget-row" style={{paddingTop: '10px'}}>
+                                    <span className="budget-label" style={{color: '#e2e8f0', fontWeight: 'bold'}}>Money Left:</span>
+                                    <span className="budget-value" style={{fontSize: '1.3em', fontWeight: 'bold'}}>{formatCurrency(moneyLeft)}</span>
+                                </div>
+                            </div>
+                            
+                            <div style={{background: '#1a1f2e', padding: '20px', borderRadius: '10px', border: '2px solid ' + (actualIncome >= expectedMonthlyIncome ? '#28a745' : '#ffc107')}}>
+                                <h3 style={{color: actualIncome >= expectedMonthlyIncome ? '#28a745' : '#ffc107', marginBottom: '15px', fontSize: '1.2em'}}>💵 ACTUAL (Current Reality)</h3>
+                                <div className="budget-row" style={{borderBottom: '1px solid #2d3748', paddingBottom: '10px'}}>
+                                    <span className="budget-label">Actual Income:</span>
+                                    <span className={`budget-value ${actualIncome >= expectedMonthlyIncome ? 'positive' : 'warning'}`} style={{fontSize: '1.1em'}}>
+                                        {formatCurrency(actualIncome)} {actualIncome < expectedMonthlyIncome && '⚠️'}
+                                    </span>
+                                </div>
+                                <div className="budget-row" style={{borderBottom: '1px solid #2d3748', paddingBottom: '10px'}}>
+                                    <span className="budget-label">Recurring Bills:</span>
+                                    <span className="budget-value negative" style={{fontSize: '1.1em'}}>-{formatCurrency(recurringTotal)}</span>
+                                </div>
+                                <div className="budget-row" style={{paddingTop: '10px'}}>
+                                    <span className="budget-label" style={{color: '#e2e8f0', fontWeight: 'bold'}}>Money Left (actual):</span>
+                                    <span className={`budget-value ${moneyLeftActual >= 0 ? 'positive' : 'negative'}`} style={{fontSize: '1.3em', fontWeight: 'bold'}}>
+                                        {formatCurrency(moneyLeftActual)} {moneyLeftActual < 0 && '⚠️'}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                         
-                        <div className="budget-row">
-                            <span className="budget-label">Actual Income (so far):</span>
-                            <span className={`budget-value ${actualIncome >= expectedMonthlyIncome ? 'positive' : 'warning'}`}>
-                                {formatCurrency(actualIncome)} {actualIncome < expectedMonthlyIncome && '⚠️'}
-                            </span>
+                        <div style={{borderTop: '2px solid #667eea', paddingTop: '20px'}}>
+                            <div className="budget-row">
+                                <span className="budget-label">Total Expenses (this month):</span>
+                                <span className="budget-value">{formatCurrency(totalExpenses)}</span>
+                            </div>
+                            
+                            <div className="budget-row">
+                                <span className="budget-label">Unpaid Recurring (still due):</span>
+                                <span className="budget-value warning">{formatCurrency(unpaidRecurring)}</span>
+                            </div>
+                            
+                            <div className="budget-row">
+                                <span className="budget-label">Spent So Far (non-recurring):</span>
+                                <span className="budget-value negative">-{formatCurrency(spentSoFar)}</span>
+                            </div>
                         </div>
                         
-                        <div className="budget-row">
-                            <span className="budget-label">Recurring Bills:</span>
-                            <span className="budget-value negative">-{formatCurrency(recurringTotal)}</span>
-                        </div>
-                        
-                        <div className="budget-row" style={{borderTop: '2px solid #667eea', paddingTop: '15px', marginTop: '10px'}}>
-                            <span className="budget-label" style={{color: '#e2e8f0'}}>Money Left (for spending):</span>
-                            <span className="budget-value">{formatCurrency(moneyLeft)}</span>
-                        </div>
-                        
-                        <div className="budget-row">
-                            <span className="budget-label">Total Expenses (this month):</span>
-                            <span className="budget-value">{formatCurrency(totalExpenses)}</span>
-                        </div>
-                        
-                        <div className="budget-row">
-                            <span className="budget-label">Unpaid Recurring (still due):</span>
-                            <span className="budget-value warning">{formatCurrency(unpaidRecurring)}</span>
-                        </div>
-                        
-                        <div className="budget-row">
-                            <span className="budget-label">Spent So Far (non-recurring):</span>
-                            <span className="budget-value negative">-{formatCurrency(spentSoFar)}</span>
-                        </div>
-                        
-                        <div className="budget-row total">
-                            <span className="budget-label total">Remaining Available:</span>
-                            <span className={`budget-value ${remaining >= 0 ? 'positive' : 'negative'}`}>
-                                {formatCurrency(remaining)} {remaining >= 0 ? '✓' : '⚠️'}
-                            </span>
+                        <div style={{borderTop: '3px solid #667eea', paddingTop: '20px', marginTop: '20px'}}>
+                            <div className="budget-row total">
+                                <span className="budget-label total">Remaining (if expected income comes):</span>
+                                <span className={`budget-value ${remainingExpected >= 0 ? 'positive' : 'negative'}`} style={{fontSize: '1.4em'}}>
+                                    {formatCurrency(remainingExpected)} {remainingExpected >= 0 ? '✓' : '⚠️'}
+                                </span>
+                            </div>
+                            
+                            <div className="budget-row total">
+                                <span className="budget-label total">Remaining (with current income):</span>
+                                <span className={`budget-value ${remainingActual >= 0 ? 'positive' : 'negative'}`} style={{fontSize: '1.4em'}}>
+                                    {formatCurrency(remainingActual)} {remainingActual >= 0 ? '✓' : '⚠️'}
+                                </span>
+                            </div>
                         </div>
                     </div>
 
