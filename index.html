@@ -491,15 +491,8 @@
             const monthName = currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
             const { start, end } = getFinancialMonthRange(currentMonth);
             
-            // Money Available calculation
-            
-            // Get transactions for current month
-            const monthTransactions = transactions.filter(t => {
-                const tDate = parseLocalDate(t.date);
-                return tDate >= start && tDate <= end;
-            });
-            
-            // Calculate recurring bills total for this month
+            // Simple Money Available calculation
+            // Income - Recurring = Money Left
             const recurringTotal = recurringPayments
                 .filter(p => {
                     let paymentDate;
@@ -512,39 +505,13 @@
                 })
                 .reduce((sum, p) => sum + parseFloat(p.amount), 0);
             
-            const discretionaryBudget = expectedMonthlyIncome - recurringTotal;
+            const moneyLeft = expectedMonthlyIncome - recurringTotal;
             
-            // Calculate discretionary spending (exclude transactions that match recurring payments)
-            const discretionarySpent = monthTransactions
-                .filter(t => {
-                    if (t.type !== 'expense') return false;
-                    if (t.isRecurring) return false;
-                    
-                    const matchesRecurring = recurringPayments.some(p => {
-                        const amountMatch = Math.abs(parseFloat(t.amount) - parseFloat(p.amount)) < 1.0;
-                        if (!amountMatch) return false;
-                        
-                        let paymentDate;
-                        if (p.dueDay >= 28) {
-                            paymentDate = new Date(start.getFullYear(), start.getMonth(), p.dueDay);
-                        } else {
-                            paymentDate = new Date(start.getFullYear(), start.getMonth() + 1, p.dueDay);
-                        }
-                        const isInPeriod = paymentDate >= start && paymentDate <= end;
-                        if (!isInPeriod) return false;
-                        
-                        if (p.category && t.category) {
-                            if (p.category.toLowerCase() !== t.category.toLowerCase()) return false;
-                        }
-                        
-                        return true;
-                    });
-                    
-                    return !matchesRecurring;
-                })
-                .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+            // Total Expenses - Recurring = Spent So Far
+            const spentSoFar = totals.expenses - recurringTotal;
             
-            const moneyAvailable = discretionaryBudget - discretionarySpent;
+            // Money Available = Money Left - Spent So Far
+            const moneyAvailable = moneyLeft - spentSoFar;
             
             const getYearlyTotals = () => {
                 const currentYear = new Date().getFullYear();
@@ -1214,6 +1181,11 @@
                 .filter(t => t.type === 'income')
                 .reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
+            // Calculate total expenses
+            const totalExpenses = monthTransactions
+                .filter(t => t.type === 'expense')
+                .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+
             // Calculate recurring bills total for this month
             const recurringTotal = recurringPayments
                 .filter(p => {
@@ -1227,45 +1199,10 @@
                 })
                 .reduce((sum, p) => sum + parseFloat(p.amount), 0);
 
-            // Calculate discretionary budget
-            const discretionaryBudget = expectedMonthlyIncome - recurringTotal;
-
-            // Calculate discretionary spending (exclude transactions that match recurring payments)
-            const discretionarySpent = monthTransactions
-                .filter(t => {
-                    if (t.type !== 'expense') return false;
-                    if (t.isRecurring) return false; // Exclude if flagged as recurring
-                    
-                    // Check if this transaction matches any recurring payment
-                    const matchesRecurring = recurringPayments.some(p => {
-                        // Check if amounts match (within $1)
-                        const amountMatch = Math.abs(parseFloat(t.amount) - parseFloat(p.amount)) < 1.0;
-                        if (!amountMatch) return false;
-                        
-                        // Check if transaction is in the current month's payment period
-                        let paymentDate;
-                        if (p.dueDay >= 28) {
-                            paymentDate = new Date(start.getFullYear(), start.getMonth(), p.dueDay);
-                        } else {
-                            paymentDate = new Date(start.getFullYear(), start.getMonth() + 1, p.dueDay);
-                        }
-                        const isInPeriod = paymentDate >= start && paymentDate <= end;
-                        if (!isInPeriod) return false;
-                        
-                        // Check if categories match
-                        if (p.category && t.category) {
-                            if (p.category.toLowerCase() !== t.category.toLowerCase()) return false;
-                        }
-                        
-                        return true;
-                    });
-                    
-                    return !matchesRecurring; // Include only if it doesn't match recurring
-                })
-                .reduce((sum, t) => sum + parseFloat(t.amount), 0);
-
-            // Calculate remaining
-            const remaining = discretionaryBudget - discretionarySpent;
+            // Simple calculations
+            const moneyLeft = expectedMonthlyIncome - recurringTotal;
+            const spentSoFar = totalExpenses - recurringTotal;
+            const remaining = moneyLeft - spentSoFar;
 
             const handleSaveIncome = () => {
                 setExpectedMonthlyIncome(tempIncome);
@@ -1314,13 +1251,18 @@
                         </div>
                         
                         <div className="budget-row" style={{borderTop: '2px solid #667eea', paddingTop: '15px', marginTop: '10px'}}>
-                            <span className="budget-label" style={{color: '#e2e8f0'}}>Discretionary Budget:</span>
-                            <span className="budget-value">{formatCurrency(discretionaryBudget)}</span>
+                            <span className="budget-label" style={{color: '#e2e8f0'}}>Money Left:</span>
+                            <span className="budget-value">{formatCurrency(moneyLeft)}</span>
                         </div>
                         
                         <div className="budget-row">
-                            <span className="budget-label">Discretionary Spent:</span>
-                            <span className="budget-value negative">-{formatCurrency(discretionarySpent)}</span>
+                            <span className="budget-label">Total Expenses:</span>
+                            <span className="budget-value negative">-{formatCurrency(totalExpenses)}</span>
+                        </div>
+                        
+                        <div className="budget-row">
+                            <span className="budget-label">Spent So Far (non-recurring):</span>
+                            <span className="budget-value negative">-{formatCurrency(spentSoFar)}</span>
                         </div>
                         
                         <div className="budget-row total">
@@ -1334,8 +1276,7 @@
                     <div className="section">
                         <h2>📊 Budget Breakdown</h2>
                         <p style={{color: '#a0aec0', marginBottom: '20px', lineHeight: '1.6'}}>
-                            <strong style={{color: '#e2e8f0'}}>Discretionary spending</strong> includes all transactions except Income and recurring payments (auto-pay items).
-                            This shows money you've actively spent beyond your regular bills.
+                            Simple budget tracking: Income - Recurring Bills = Money Left, then subtract what you've spent on non-recurring items.
                         </p>
                         
                         <div style={{background: '#1a1f2e', padding: '20px', borderRadius: '10px'}}>
@@ -1347,13 +1288,6 @@
                             </div>
                             
                             <div style={{marginBottom: '15px'}}>
-                                <strong style={{color: '#667eea'}}>Actual Income:</strong>
-                                <p style={{color: '#a0aec0', fontSize: '0.9em', marginTop: '5px'}}>
-                                    Sum of all Income transactions recorded this month so far.
-                                </p>
-                            </div>
-                            
-                            <div style={{marginBottom: '15px'}}>
                                 <strong style={{color: '#667eea'}}>Recurring Bills:</strong>
                                 <p style={{color: '#a0aec0', fontSize: '0.9em', marginTop: '5px'}}>
                                     Total of all recurring payments due this month (from Recurring tab).
@@ -1361,16 +1295,23 @@
                             </div>
                             
                             <div style={{marginBottom: '15px'}}>
-                                <strong style={{color: '#667eea'}}>Discretionary Spent:</strong>
+                                <strong style={{color: '#667eea'}}>Money Left:</strong>
                                 <p style={{color: '#a0aec0', fontSize: '0.9em', marginTop: '5px'}}>
-                                    Money spent on non-recurring items (excludes auto-pay transactions to avoid double-counting).
+                                    Expected Income - Recurring Bills = Your budget for discretionary spending.
+                                </p>
+                            </div>
+                            
+                            <div style={{marginBottom: '15px'}}>
+                                <strong style={{color: '#667eea'}}>Spent So Far:</strong>
+                                <p style={{color: '#a0aec0', fontSize: '0.9em', marginTop: '5px'}}>
+                                    Total Expenses - Recurring Bills = What you've actually spent on non-recurring items.
                                 </p>
                             </div>
                             
                             <div>
                                 <strong style={{color: '#667eea'}}>Remaining Available:</strong>
                                 <p style={{color: '#a0aec0', fontSize: '0.9em', marginTop: '5px'}}>
-                                    This is your "money left to spend" after all bills and discretionary purchases. Green means you're under budget, red means you've overspent.
+                                    Money Left - Spent So Far = How much you have left to spend this month.
                                 </p>
                             </div>
                         </div>
