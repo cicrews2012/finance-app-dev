@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.10.7</title>
+    <title>Finance Tracker v1.10.8</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -462,7 +462,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.10.7 | Fix Import Bug</div>
+                        <div className="version">v1.10.8 | Clarify Money Available Card</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -591,7 +591,7 @@
                         <div className="summary-card"><h3>Total Income</h3><div className="amount">{formatCurrency(totals.income)}</div></div>
                         <div className="summary-card"><h3>Total Expenses</h3><div className="amount">{formatCurrency(totals.expenses)}</div><div className="subtitle">From transactions only</div></div>
                         <div className="summary-card"><h3>Net Balance</h3><div className="amount">{formatCurrency(totals.net)}</div><div className="subtitle">{totals.income > 0 ? ((totals.net / totals.income) * 100).toFixed(1) : 0}% of income</div></div>
-                        <div className="summary-card" style={{background: moneyAvailable >= 0 ? 'linear-gradient(135deg, #28a745 0%, #20c997 100%)' : 'linear-gradient(135deg, #dc3545 0%, #c92a2a 100%)'}}><h3>💰 Money Available</h3><div className="amount">{formatCurrency(moneyAvailable)}</div><div className="subtitle">After bills & spending</div></div>
+                        <div className="summary-card" style={{background: moneyAvailable >= 0 ? 'linear-gradient(135deg, #28a745 0%, #20c997 100%)' : 'linear-gradient(135deg, #dc3545 0%, #c92a2a 100%)'}}><h3>💰 Money Available</h3><div className="amount">{formatCurrency(moneyAvailable)}</div><div className="subtitle">After bills & spending<br/><span style={{fontSize: '0.85em', opacity: 0.8}}>(Based on expected income)</span></div></div>
                         <div className="summary-card"><h3>Unpaid Recurring</h3><div className="amount">{formatCurrency(unpaidRecurring)}</div><div className="subtitle">Still due this month</div></div>
                     </div>
                     {transactions.length > 0 && (
