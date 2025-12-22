@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.10.3</title>
+    <title>Finance Tracker v1.10.4</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -462,7 +462,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.10.3 | Budget - Expected vs Actual</div>
+                        <div className="version">v1.10.4 | Spending by Category + Place Search</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -580,34 +580,44 @@
                             </div>
                         </div>
                     )}
-                    {debts.length > 0 && (
-                        <div className="collapsible-section">
-                            <div className="collapsible-header" onClick={() => setDebtsCollapsed(!debtsCollapsed)}>
-                                <h3>💸 Debt Overview - Total: {formatCurrency(totalDebt)}</h3>
-                                <span style={{fontSize: '1.5em'}}>{debtsCollapsed ? '▼' : '▲'}</span>
-                            </div>
-                            {!debtsCollapsed && (
-                                <div className="collapsible-content">
-                                    <div className="debt-overview-grid">
-                                        {debts.map(debt => {
-                                            const originalBalance = parseFloat(debt.originalBalance) || 0;
-                                            const currentBalance = parseFloat(debt.currentBalance) || 0;
-                                            const interestRate = parseFloat(debt.interestRate) || 0;
-                                            const progressPercent = originalBalance > 0 ? ((originalBalance - currentBalance) / originalBalance * 100) : 0;
-                                            return (
-                                                <div key={debt.id} className="debt-mini-card">
-                                                    <h4>{debt.name}</h4>
-                                                    <div className="debt-amount">{formatCurrency(currentBalance)}</div>
-                                                    <div className="debt-info">{debt.category}</div>
-                                                    <div className="debt-info">{interestRate.toFixed(2)}% APR</div>
-                                                    <div className="progress-bar" style={{marginTop: '8px'}}><div className="progress-fill" style={{width: `${Math.min(progressPercent, 100)}%`}}></div></div>
-                                                    <div className="debt-info" style={{marginTop: '5px'}}>{progressPercent.toFixed(1)}% paid off</div>
+                    {transactions.filter(t => {
+                        const tDate = parseLocalDate(t.date);
+                        return tDate >= start && tDate <= end && t.type === 'expense';
+                    }).length > 0 && (
+                        <div className="section">
+                            <h2>💳 Spending by Category This Month</h2>
+                            <div style={{marginTop: '20px'}}>
+                                {(() => {
+                                    const categoryTotals = {};
+                                    transactions.filter(t => {
+                                        const tDate = parseLocalDate(t.date);
+                                        return tDate >= start && tDate <= end && t.type === 'expense';
+                                    }).forEach(t => {
+                                        categoryTotals[t.category] = (categoryTotals[t.category] || 0) + parseFloat(t.amount);
+                                    });
+                                    
+                                    const totalSpent = Object.values(categoryTotals).reduce((sum, val) => sum + val, 0);
+                                    const sortedCategories = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]).slice(0, 8);
+                                    
+                                    return sortedCategories.map(([category, amount]) => {
+                                        const percentage = (amount / totalSpent) * 100;
+                                        return (
+                                            <div key={category} style={{marginBottom: '15px'}}>
+                                                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px'}}>
+                                                    <span style={{color: '#e2e8f0', fontWeight: '600'}}>{category}</span>
+                                                    <span style={{color: '#667eea', fontWeight: '700', fontSize: '1.1em'}}>{formatCurrency(amount)}</span>
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            )}
+                                                <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                                                    <div style={{flex: 1, height: '12px', background: '#2d3748', borderRadius: '6px', overflow: 'hidden'}}>
+                                                        <div style={{width: `${percentage}%`, height: '100%', background: 'linear-gradient(90deg, #667eea, #764ba2)', transition: 'width 0.3s ease'}}></div>
+                                                    </div>
+                                                    <span style={{color: '#a0aec0', fontSize: '0.9em', minWidth: '45px', textAlign: 'right'}}>{percentage.toFixed(1)}%</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    });
+                                })()}
+                            </div>
                         </div>
                     )}
                 </div>
@@ -618,6 +628,7 @@
             const [formData, setFormData] = useState({ type: 'expense', amount: '', description: '', category: '', date: getLocalDateString() });
             const [expandedMonths, setExpandedMonths] = useState({});
             const [selectedCategory, setSelectedCategory] = useState('All');
+            const [searchPlace, setSearchPlace] = useState('');
             const [editingTransaction, setEditingTransaction] = useState(null);
             const [showCustomCategory, setShowCustomCategory] = useState(false);
             const [customCategory, setCustomCategory] = useState('');
@@ -669,7 +680,46 @@
             };
 
             const categories = getAllCategories();
-            const monthlyGroups = groupTransactionsByMonth();
+            
+            // Filter transactions by search place
+            const filterByPlace = (transactionsList) => {
+                if (!searchPlace.trim()) return transactionsList;
+                return transactionsList.filter(t => 
+                    t.description.toLowerCase().includes(searchPlace.toLowerCase())
+                );
+            };
+            
+            const filteredByCategory = filterTransactionsByCategory(transactions);
+            const filteredByPlace = filterByPlace(filteredByCategory);
+            
+            // Calculate totals for search results
+            const searchTotals = searchPlace.trim() ? {
+                thisMonth: filteredByPlace.filter(t => {
+                    const tDate = parseLocalDate(t.date);
+                    const { start, end } = getFinancialMonthRange(currentMonth);
+                    return tDate >= start && tDate <= end;
+                }).reduce((sum, t) => sum + parseFloat(t.amount), 0),
+                allTime: filteredByPlace.reduce((sum, t) => sum + parseFloat(t.amount), 0)
+            } : null;
+            
+            const groupTransactionsByMonthFiltered = () => {
+                const grouped = {};
+                filteredByPlace.forEach(transaction => {
+                    const date = parseLocalDate(transaction.date);
+                    const day = date.getDate();
+                    let financialMonth, financialYear;
+                    if (day >= 28) { financialMonth = date.getMonth() + 1; financialYear = date.getFullYear(); if (financialMonth > 11) { financialMonth = 0; financialYear++; } } else { financialMonth = date.getMonth(); financialYear = date.getFullYear(); }
+                    const monthKey = `${financialYear}-${String(financialMonth + 1).padStart(2, '0')}`;
+                    const monthLabel = new Date(financialYear, financialMonth, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                    if (!grouped[monthKey]) { grouped[monthKey] = { label: monthLabel, transactions: [], income: 0, expenses: 0 }; }
+                    grouped[monthKey].transactions.push(transaction);
+                    const amount = parseFloat(transaction.amount) || 0;
+                    if (transaction.type === 'income') { grouped[monthKey].income += amount; } else { grouped[monthKey].expenses += amount; }
+                });
+                return Object.entries(grouped).sort((a, b) => b[0].localeCompare(a[0]));
+            };
+            
+            const monthlyGroups = groupTransactionsByMonthFiltered();
 
             return (
                 <div>
@@ -724,6 +774,27 @@
                     </div>
                     <div className="section">
                         <h2>Transaction History</h2>
+                        <div style={{marginBottom: '20px'}}>
+                            <label>🔍 Search by Place/Description</label>
+                            <input 
+                                type="text" 
+                                value={searchPlace} 
+                                onChange={(e) => setSearchPlace(e.target.value)}
+                                placeholder="e.g., 7 Brew, Kroger, Amazon..." 
+                                style={{marginTop: '8px'}}
+                            />
+                            {searchTotals && (
+                                <div style={{marginTop: '10px', padding: '15px', background: '#1a1f2e', borderRadius: '8px', border: '2px solid #667eea'}}>
+                                    <p style={{color: '#e2e8f0', marginBottom: '5px'}}>
+                                        <strong style={{color: '#667eea'}}>"{searchPlace}"</strong> - Found {filteredByPlace.length} transaction{filteredByPlace.length !== 1 ? 's' : ''}
+                                    </p>
+                                    <p style={{color: '#a0aec0', fontSize: '0.95em'}}>
+                                        This Month: <strong style={{color: '#667eea'}}>{formatCurrency(searchTotals.thisMonth)}</strong> • 
+                                        All Time: <strong style={{color: '#667eea'}}>{formatCurrency(searchTotals.allTime)}</strong>
+                                    </p>
+                                </div>
+                            )}
+                        </div>
                         <div className="category-filters">
                             {categories.map(category => (
                                 <button key={category} className={`category-filter-btn ${selectedCategory === category ? 'active' : ''}`} onClick={() => setSelectedCategory(category)}>{category}</button>
@@ -1013,6 +1084,29 @@
 
             return (
                 <div>
+                    {debts.length > 0 && (
+                        <div className="section" style={{background: 'linear-gradient(135deg, #dc354522 0%, #c92a2a22 100%)', border: '2px solid #dc3545'}}>
+                            <h2 style={{color: '#dc3545', marginBottom: '20px'}}>💸 Debt Overview</h2>
+                            <div className="debt-overview-grid">
+                                {debts.map(debt => {
+                                    const originalBalance = parseFloat(debt.originalBalance) || 0;
+                                    const currentBalance = parseFloat(debt.currentBalance) || 0;
+                                    const interestRate = parseFloat(debt.interestRate) || 0;
+                                    const progressPercent = originalBalance > 0 ? ((originalBalance - currentBalance) / originalBalance * 100) : 0;
+                                    return (
+                                        <div key={debt.id} className="debt-mini-card">
+                                            <h4>{debt.name}</h4>
+                                            <div className="debt-amount">{formatCurrency(currentBalance)}</div>
+                                            <div className="debt-info">{debt.category}</div>
+                                            <div className="debt-info">{interestRate.toFixed(2)}% APR</div>
+                                            <div className="progress-bar" style={{marginTop: '8px'}}><div className="progress-fill" style={{width: `${Math.min(progressPercent, 100)}%`}}></div></div>
+                                            <div className="debt-info" style={{marginTop: '5px'}}>{progressPercent.toFixed(1)}% paid off</div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                     <div className="section">
                         <h2>Add New Debt</h2>
                         <form onSubmit={handleSubmit}>
