@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.10.9</title>
+    <title>Finance Tracker v1.11.0</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -462,7 +462,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.10.9 | Better First-Time Setup Guide</div>
+                        <div className="version">v1.11.0 | Bulk Transaction Entry</div></div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -667,6 +667,12 @@
             const [editingTransaction, setEditingTransaction] = useState(null);
             const [showCustomCategory, setShowCustomCategory] = useState(false);
             const [customCategory, setCustomCategory] = useState('');
+            const [showBulkEntry, setShowBulkEntry] = useState(false);
+            const [bulkRows, setBulkRows] = useState([
+                { id: 1, date: getLocalDateString(), description: '', amount: '', category: '', type: 'expense' },
+                { id: 2, date: getLocalDateString(), description: '', amount: '', category: '', type: 'expense' },
+                { id: 3, date: getLocalDateString(), description: '', amount: '', category: '', type: 'expense' }
+            ]);
 
             const handleSubmit = (e) => {
                 e.preventDefault();
@@ -681,6 +687,59 @@
                     setShowCustomCategory(false);
                     setCustomCategory('');
                 }
+            };
+
+            const addBulkRow = () => {
+                setBulkRows([...bulkRows, { 
+                    id: Date.now(), 
+                    date: getLocalDateString(), 
+                    description: '', 
+                    amount: '', 
+                    category: '', 
+                    type: 'expense' 
+                }]);
+            };
+
+            const removeBulkRow = (id) => {
+                if (bulkRows.length > 1) {
+                    setBulkRows(bulkRows.filter(row => row.id !== id));
+                }
+            };
+
+            const updateBulkRow = (id, field, value) => {
+                setBulkRows(bulkRows.map(row => 
+                    row.id === id ? { ...row, [field]: value } : row
+                ));
+            };
+
+            const handleBulkSubmit = (e) => {
+                e.preventDefault();
+                const validRows = bulkRows.filter(row => row.description && row.amount && row.category);
+                
+                if (validRows.length === 0) {
+                    alert('Please fill out at least one complete transaction (description, amount, and category).');
+                    return;
+                }
+
+                const newTransactions = validRows.map(row => ({
+                    type: row.type,
+                    amount: parseFloat(row.amount),
+                    description: row.description,
+                    category: row.category,
+                    date: row.date,
+                    id: Date.now() + Math.random()
+                }));
+
+                setTransactions([...transactions, ...newTransactions]);
+                
+                // Reset bulk rows
+                setBulkRows([
+                    { id: Date.now() + 1, date: getLocalDateString(), description: '', amount: '', category: '', type: 'expense' },
+                    { id: Date.now() + 2, date: getLocalDateString(), description: '', amount: '', category: '', type: 'expense' },
+                    { id: Date.now() + 3, date: getLocalDateString(), description: '', amount: '', category: '', type: 'expense' }
+                ]);
+                
+                alert(`Successfully added ${newTransactions.length} transaction${newTransactions.length !== 1 ? 's' : ''}!`);
             };
 
             const handleEdit = (transaction) => {
@@ -765,8 +824,106 @@
             return (
                 <div>
                     <div className="section">
-                        <h2>Add New Transaction</h2>
-                        <form onSubmit={handleSubmit}>
+                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
+                            <h2>{showBulkEntry ? 'Add Multiple Transactions' : 'Add New Transaction'}</h2>
+                            <button 
+                                type="button"
+                                onClick={() => setShowBulkEntry(!showBulkEntry)}
+                                style={{background: showBulkEntry ? '#6c757d' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'}}
+                            >
+                                {showBulkEntry ? '← Single Entry' : '📝 Bulk Entry'}
+                            </button>
+                        </div>
+                        
+                        {showBulkEntry ? (
+                            <form onSubmit={handleBulkSubmit}>
+                                <div style={{overflowX: 'auto'}}>
+                                    <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '20px'}}>
+                                        <thead>
+                                            <tr style={{background: '#1a1f2e'}}>
+                                                <th style={{padding: '12px', textAlign: 'left', color: '#667eea', border: '1px solid #2d3748'}}>Type</th>
+                                                <th style={{padding: '12px', textAlign: 'left', color: '#667eea', border: '1px solid #2d3748'}}>Date</th>
+                                                <th style={{padding: '12px', textAlign: 'left', color: '#667eea', border: '1px solid #2d3748'}}>Description</th>
+                                                <th style={{padding: '12px', textAlign: 'left', color: '#667eea', border: '1px solid #2d3748'}}>Amount</th>
+                                                <th style={{padding: '12px', textAlign: 'left', color: '#667eea', border: '1px solid #2d3748'}}>Category</th>
+                                                <th style={{padding: '12px', textAlign: 'center', color: '#667eea', border: '1px solid #2d3748', width: '80px'}}>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {bulkRows.map(row => (
+                                                <tr key={row.id} style={{background: '#0f1419'}}>
+                                                    <td style={{padding: '8px', border: '1px solid #2d3748'}}>
+                                                        <select 
+                                                            value={row.type} 
+                                                            onChange={(e) => updateBulkRow(row.id, 'type', e.target.value)}
+                                                            style={{width: '100%', padding: '8px'}}
+                                                        >
+                                                            <option value="expense">Expense</option>
+                                                            <option value="income">Income</option>
+                                                        </select>
+                                                    </td>
+                                                    <td style={{padding: '8px', border: '1px solid #2d3748'}}>
+                                                        <input 
+                                                            type="date" 
+                                                            value={row.date} 
+                                                            onChange={(e) => updateBulkRow(row.id, 'date', e.target.value)}
+                                                            style={{width: '100%', padding: '8px'}}
+                                                        />
+                                                    </td>
+                                                    <td style={{padding: '8px', border: '1px solid #2d3748'}}>
+                                                        <input 
+                                                            type="text" 
+                                                            value={row.description} 
+                                                            onChange={(e) => updateBulkRow(row.id, 'description', e.target.value)}
+                                                            placeholder="e.g., 7 Brew"
+                                                            style={{width: '100%', padding: '8px'}}
+                                                        />
+                                                    </td>
+                                                    <td style={{padding: '8px', border: '1px solid #2d3748'}}>
+                                                        <input 
+                                                            type="number" 
+                                                            step="0.01" 
+                                                            value={row.amount} 
+                                                            onChange={(e) => updateBulkRow(row.id, 'amount', e.target.value)}
+                                                            placeholder="0.00"
+                                                            style={{width: '100%', padding: '8px'}}
+                                                        />
+                                                    </td>
+                                                    <td style={{padding: '8px', border: '1px solid #2d3748'}}>
+                                                        <select 
+                                                            value={row.category} 
+                                                            onChange={(e) => updateBulkRow(row.id, 'category', e.target.value)}
+                                                            style={{width: '100%', padding: '8px'}}
+                                                        >
+                                                            <option value="">Select...</option>
+                                                            {(row.type === 'expense' ? expenseCategories : incomeCategories).map(cat => 
+                                                                <option key={cat} value={cat}>{cat}</option>
+                                                            )}
+                                                        </select>
+                                                    </td>
+                                                    <td style={{padding: '8px', border: '1px solid #2d3748', textAlign: 'center'}}>
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => removeBulkRow(row.id)}
+                                                            className="danger"
+                                                            style={{padding: '6px 12px', fontSize: '0.9em'}}
+                                                            disabled={bulkRows.length === 1}
+                                                        >
+                                                            ✕
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div style={{display: 'flex', gap: '10px', marginTop: '15px'}}>
+                                    <button type="button" onClick={addBulkRow} className="secondary">+ Add Row</button>
+                                    <button type="submit">💾 Save All ({bulkRows.filter(r => r.description && r.amount && r.category).length} ready)</button>
+                                </div>
+                            </form>
+                        ) : (
+                            <form onSubmit={handleSubmit}>
                             <div className="form-row">
                                 <div className="form-group"><label>Type</label><select value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})}><option value="income">Income</option><option value="expense">Expense</option></select></div>
                                 <div className="form-group"><label>Amount</label><input type="number" step="0.01" value={formData.amount} onChange={(e) => setFormData({...formData, amount: e.target.value})} placeholder="0.00" required /></div>
@@ -812,6 +969,7 @@
                             </div>
                             <button type="submit">Add Transaction</button>
                         </form>
+                        )}
                     </div>
                     <div className="section">
                         <h2>Transaction History</h2>
