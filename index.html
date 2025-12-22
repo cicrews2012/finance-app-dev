@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.10.8</title>
+    <title>Finance Tracker v1.10.9</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -462,7 +462,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.10.8 | Clarify Money Available Card</div>
+                        <div className="version">v1.10.9 | Better First-Time Setup Guide</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -574,6 +574,9 @@
                             </button>
                             <p style={{color: '#a0aec0', fontSize: '0.9em', marginTop: '30px', fontStyle: 'italic'}}>
                                 💡 No localStorage used - all data is managed through JSON import/export
+                            </p>
+                            <p style={{color: '#667eea', fontSize: '0.95em', marginTop: '15px', fontWeight: '600'}}>
+                                📖 New user? Check the <strong>⚙️ Settings</strong> tab for first-time setup instructions!
                             </p>
                         </div>
                     </div>
@@ -1522,25 +1525,58 @@
                     </div>
                     <div className="section">
                         <h2>How to Use Finance Tracker</h2>
-                        <p style={{marginBottom: '20px', lineHeight: '1.6', color: '#a0aec0'}}>Quick guide to get the most out of your finance tracker.</p>
+                        <p style={{marginBottom: '20px', lineHeight: '1.6', color: '#a0aec0'}}>Complete guide for new and existing users.</p>
+                        
+                        <div style={{background: 'linear-gradient(135deg, #28a74522 0%, #20c99722 100%)', border: '2px solid #28a745', padding: '20px', borderRadius: '10px', marginBottom: '30px'}}>
+                            <h3 style={{color: '#28a745', marginBottom: '15px'}}>🎯 First-Time Setup (Recommended Order)</h3>
+                            <ol style={{color: '#e2e8f0', lineHeight: '2', marginLeft: '20px'}}>
+                                <li><strong>Set Expected Income:</strong> Go to <strong style={{color: '#667eea'}}>💵 Budget</strong> tab → Set your expected monthly income</li>
+                                <li><strong>Add Debts:</strong> Go to <strong style={{color: '#667eea'}}>📉 Debt Tracking</strong> tab → Add all your debts (credit cards, loans, etc.)</li>
+                                <li><strong>Add Recurring Payments:</strong> Go to <strong style={{color: '#667eea'}}>🔄 Recurring</strong> tab → Add monthly bills
+                                    <ul style={{marginTop: '5px', marginLeft: '20px'}}>
+                                        <li>Link debt payments to their corresponding debts for automatic balance tracking</li>
+                                        <li>Enable "Auto-pay" checkbox for bills that should create transactions automatically</li>
+                                    </ul>
+                                </li>
+                                <li><strong>Add Transactions:</strong> Go to <strong style={{color: '#667eea'}}>💳 Transactions</strong> tab → Start adding your income and expenses</li>
+                                <li><strong>Check Your Budget:</strong> Return to <strong style={{color: '#667eea'}}>📊 Dashboard</strong> to see your financial overview</li>
+                            </ol>
+                        </div>
+                        
+                        <h3 style={{marginTop: '20px', marginBottom: '10px', color: '#667eea'}}>💵 Budget Tab - Money Available</h3>
+                        <p style={{marginBottom: '10px', lineHeight: '1.6', color: '#a0aec0'}}>
+                            <strong>What it shows:</strong> Expected vs Actual income comparison, and how much discretionary money you have left.<br/>
+                            <strong>Key metrics:</strong> Shows "Remaining (if expected income comes)" and "Remaining (with current income)" so you can plan accordingly.<br/>
+                            <strong>Updates:</strong> Set your expected monthly income here - it's used across the app for budget calculations.
+                        </p>
                         
                         <h3 style={{marginTop: '20px', marginBottom: '10px', color: '#667eea'}}>🔄 Auto-Pay Recurring Payments</h3>
                         <p style={{marginBottom: '10px', lineHeight: '1.6', color: '#a0aec0'}}>
                             <strong>What it does:</strong> Automatically creates transactions when the due date passes.<br/>
                             <strong>How to enable:</strong> When adding/editing a recurring payment, check the "Auto-pay" checkbox.<br/>
-                            <strong>How it works:</strong> On the due date, a transaction is created automatically and the payment is marked as paid.
+                            <strong>How it works:</strong> On the due date, a transaction is created automatically and the payment is marked as paid.<br/>
+                            <strong>Best for:</strong> Bills that auto-pay from your account (Netflix, utilities, car payment, etc.)
                         </p>
                         
                         <h3 style={{marginTop: '20px', marginBottom: '10px', color: '#667eea'}}>💳 Linking Payments to Debts</h3>
                         <p style={{marginBottom: '10px', lineHeight: '1.6', color: '#a0aec0'}}>
-                            <strong>What it does:</strong> Updates debt balance and tracks interest/principal breakdown.<br/>
+                            <strong>What it does:</strong> Automatically updates debt balance and tracks interest/principal breakdown.<br/>
                             <strong>How to link:</strong> When adding/editing a recurring payment, select a debt from the "Link to Debt" dropdown.<br/>
-                            <strong>What you get:</strong> Automatic balance updates + transaction history showing exactly how each payment reduces your debt.
+                            <strong>What you get:</strong> Automatic balance updates + transaction history showing exactly how each payment reduces your debt.<br/>
+                            <strong>Important:</strong> Add your debts FIRST before creating linked recurring payments.
+                        </p>
+                        
+                        <h3 style={{marginTop: '20px', marginBottom: '10px', color: '#667eea'}}>🔍 Search Transactions by Place</h3>
+                        <p style={{marginBottom: '10px', lineHeight: '1.6', color: '#a0aec0'}}>
+                            <strong>Where:</strong> Go to <strong style={{color: '#667eea'}}>💳 Transactions</strong> tab → Use the search box at the top of Transaction History.<br/>
+                            <strong>How it works:</strong> Type any place name (e.g., "7 Brew", "Kroger", "Amazon") to see all matching transactions.<br/>
+                            <strong>Shows:</strong> Total spent at that place this month + all-time total.<br/>
+                            <strong>Smart matching:</strong> Automatically handles variations like "7brew" vs "7 Brew" or "walmart" vs "Wal-Mart"
                         </p>
                         
                         <h3 style={{marginTop: '20px', marginBottom: '10px', color: '#667eea'}}>📊 Debt Transaction Logs</h3>
                         <p style={{marginBottom: '10px', lineHeight: '1.6', color: '#a0aec0'}}>
-                            <strong>Where to find:</strong> Go to Debts tab, Click on a debt to expand, Scroll to "Transaction History".<br/>
+                            <strong>Where to find:</strong> Go to <strong style={{color: '#667eea'}}>📉 Debt Tracking</strong> tab → Click on a debt to expand → Scroll to "Transaction History".<br/>
                             <strong>What it shows:</strong> Date, payment amount, interest charged, principal paid, and balance before/after.<br/>
                             <strong>Note:</strong> Only shows for debts with linked recurring payments that have been processed.
                         </p>
@@ -1549,18 +1585,20 @@
                         <p style={{marginBottom: '10px', lineHeight: '1.6', color: '#a0aec0'}}>
                             <strong>How it works:</strong> Financial months run from the 28th of one month through the 27th of the next.<br/>
                             <strong>Example:</strong> December 2025 = Nov 28 through Dec 27.<br/>
-                            <strong>Why:</strong> Aligns with common payday cycles where bills are due early in the calendar month.
+                            <strong>Why:</strong> Aligns with common payday cycles where bills are due early in the calendar month.<br/>
+                            <strong>All calculations:</strong> Dashboard stats, Budget tab, and recurring payments all use this cycle.
                         </p>
                         
                         <h3 style={{marginTop: '20px', marginBottom: '10px', color: '#667eea'}}>💾 Export & Import</h3>
                         <p style={{marginBottom: '10px', lineHeight: '1.6', color: '#a0aec0'}}>
-                            <strong>Export:</strong> Creates a backup JSON file with all your data (transactions, debts, recurring payments).<br/>
-                            <strong>Import:</strong> Restores data from a backup file.<br/>
-                            <strong>Use case:</strong> Backup your data regularly, or move data between devices/browsers.
+                            <strong>Export:</strong> Creates a backup JSON file with all your data (transactions, debts, recurring payments, settings).<br/>
+                            <strong>Import:</strong> Restores data from a backup file - can be done from Dashboard welcome screen or Settings tab.<br/>
+                            <strong>Use case:</strong> Backup your data regularly, or move data between devices/browsers.<br/>
+                            <strong>Workflow:</strong> Import → Make changes → Export to save. No auto-save!
                         </p>
                         
                         <p style={{marginTop: '30px', padding: '15px', background: '#1a1f2e', borderRadius: '8px', color: '#667eea', fontSize: '0.9em'}}>
-                            <strong>💡 Tip:</strong> All data is stored locally in your browser. No one else can see your financial information, even if they access the same URL.
+                            <strong>💡 Pro Tip:</strong> Export your data at the end of each session! Without exporting, your changes will be lost when you close the page.
                         </p>
                     </div>
                 </div>
