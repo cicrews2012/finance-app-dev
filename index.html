@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.10.5</title>
+    <title>Finance Tracker v1.10.6</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -462,7 +462,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.10.5 | Smart Search (Fuzzy Matching)</div>
+                        <div className="version">v1.10.6 | Import on Welcome Screen</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -474,7 +474,7 @@
                         <button className={`tab-button ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>⚙️ Settings</button>
                     </div>
                     <div className="tab-content">
-                        {activeTab === 'dashboard' && <DashboardTab totals={totals} totalDebt={totalDebt} unpaidRecurring={unpaidRecurring} currentMonth={currentMonth} transactions={transactions} recurringPayments={recurringPayments} debts={debts} expectedMonthlyIncome={expectedMonthlyIncome} />}
+                        {activeTab === 'dashboard' && <DashboardTab totals={totals} totalDebt={totalDebt} unpaidRecurring={unpaidRecurring} currentMonth={currentMonth} transactions={transactions} recurringPayments={recurringPayments} debts={debts} expectedMonthlyIncome={expectedMonthlyIncome} importData={importData} />}
                         {activeTab === 'budget' && <BudgetTab transactions={transactions} recurringPayments={recurringPayments} expectedMonthlyIncome={expectedMonthlyIncome} setExpectedMonthlyIncome={setExpectedMonthlyIncome} currentMonth={currentMonth} unpaidRecurring={unpaidRecurring} />}
                         {activeTab === 'transactions' && <TransactionsTab transactions={transactions} setTransactions={setTransactions} currentMonth={currentMonth} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
                         {activeTab === 'recurring' && <RecurringTab recurringPayments={recurringPayments} setRecurringPayments={setRecurringPayments} debts={debts} setDebts={setDebts} transactions={transactions} setTransactions={setTransactions} paidPayments={paidPayments} setPaidPayments={setPaidPayments} currentMonth={currentMonth} />}
@@ -486,7 +486,7 @@
             );
         }
 
-        function DashboardTab({ totals, totalDebt, unpaidRecurring, currentMonth, transactions, recurringPayments, debts, expectedMonthlyIncome }) {
+        function DashboardTab({ totals, totalDebt, unpaidRecurring, currentMonth, transactions, recurringPayments, debts, expectedMonthlyIncome, importData }) {
             const [debtsCollapsed, setDebtsCollapsed] = useState(false);
             const monthName = currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
             const { start, end } = getFinancialMonthRange(currentMonth);
@@ -524,6 +524,8 @@
 
             // Show welcome message if no data loaded
             if (transactions.length === 0 && recurringPayments.length === 0 && debts.length === 0) {
+                const fileInputRef = React.useRef(null);
+                
                 return (
                     <div>
                         <div style={{textAlign: 'center', padding: '60px 20px', background: '#1a1f2e', borderRadius: '15px', margin: '40px auto', maxWidth: '600px'}}>
@@ -534,12 +536,43 @@
                             <div style={{background: '#0f1419', padding: '30px', borderRadius: '10px', textAlign: 'left'}}>
                                 <h3 style={{color: '#667eea', marginBottom: '15px'}}>📥 To Get Started:</h3>
                                 <ol style={{color: '#e2e8f0', lineHeight: '2', marginLeft: '20px'}}>
-                                    <li>Click the <strong style={{color: '#667eea'}}>⚙️ Settings</strong> tab above</li>
-                                    <li>Click <strong style={{color: '#28a745'}}>Import Data</strong></li>
+                                    <li>Click <strong style={{color: '#28a745'}}>Import Data</strong> below</li>
                                     <li>Select your finance data JSON file</li>
                                     <li>Your dashboard will populate with all your data!</li>
                                 </ol>
                             </div>
+                            <input 
+                                ref={fileInputRef}
+                                type="file" 
+                                accept=".json" 
+                                onChange={importData} 
+                                style={{display: 'none'}} 
+                            />
+                            <button 
+                                onClick={() => fileInputRef.current?.click()}
+                                style={{
+                                    marginTop: '30px',
+                                    padding: '15px 40px',
+                                    fontSize: '1.1em',
+                                    background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
+                                    border: 'none',
+                                    borderRadius: '10px',
+                                    color: 'white',
+                                    fontWeight: '700',
+                                    cursor: 'pointer',
+                                    transition: 'transform 0.2s, box-shadow 0.2s'
+                                }}
+                                onMouseOver={(e) => {
+                                    e.currentTarget.style.transform = 'translateY(-2px)';
+                                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(40, 167, 69, 0.4)';
+                                }}
+                                onMouseOut={(e) => {
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                    e.currentTarget.style.boxShadow = 'none';
+                                }}
+                            >
+                                📁 Import Data
+                            </button>
                             <p style={{color: '#a0aec0', fontSize: '0.9em', marginTop: '30px', fontStyle: 'italic'}}>
                                 💡 No localStorage used - all data is managed through JSON import/export
                             </p>
