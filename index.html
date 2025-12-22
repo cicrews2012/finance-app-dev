@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.10.6</title>
+    <title>Finance Tracker v1.10.7</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -462,7 +462,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.10.6 | Import on Welcome Screen</div>
+                        <div className="version">v1.10.7 | Fix Import Bug</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -488,6 +488,7 @@
 
         function DashboardTab({ totals, totalDebt, unpaidRecurring, currentMonth, transactions, recurringPayments, debts, expectedMonthlyIncome, importData }) {
             const [debtsCollapsed, setDebtsCollapsed] = useState(false);
+            const fileInputRef = React.useRef(null); // Move ref to top level
             const monthName = currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
             const { start, end } = getFinancialMonthRange(currentMonth);
             
@@ -524,8 +525,6 @@
 
             // Show welcome message if no data loaded
             if (transactions.length === 0 && recurringPayments.length === 0 && debts.length === 0) {
-                const fileInputRef = React.useRef(null);
-                
                 return (
                     <div>
                         <div style={{textAlign: 'center', padding: '60px 20px', background: '#1a1f2e', borderRadius: '15px', margin: '40px auto', maxWidth: '600px'}}>
