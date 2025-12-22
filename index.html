@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.10.4</title>
+    <title>Finance Tracker v1.10.5</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -462,7 +462,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.10.4 | Spending by Category + Place Search</div>
+                        <div className="version">v1.10.5 | Smart Search (Fuzzy Matching)</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -681,11 +681,17 @@
 
             const categories = getAllCategories();
             
-            // Filter transactions by search place
+            // Normalize string for smart matching (remove spaces, punctuation, lowercase)
+            const normalizeForSearch = (str) => {
+                return str.toLowerCase().replace(/[\s\-_.]/g, '');
+            };
+            
+            // Filter transactions by search place with smart matching
             const filterByPlace = (transactionsList) => {
                 if (!searchPlace.trim()) return transactionsList;
+                const normalizedSearch = normalizeForSearch(searchPlace);
                 return transactionsList.filter(t => 
-                    t.description.toLowerCase().includes(searchPlace.toLowerCase())
+                    normalizeForSearch(t.description).includes(normalizedSearch)
                 );
             };
             
