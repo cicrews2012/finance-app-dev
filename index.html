@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.11.8</title>
+    <title>Finance Tracker v1.11.9</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -155,7 +155,8 @@
                     
                     let newTransactions = [...transactions];
                     let updatedDebts = [...debts];
-                    let hasChanges = false;
+                    let hasTransactionChanges = false;
+                    let hasDebtChanges = false;
                     
                     recurringPayments.forEach(payment => {
                         console.log(`\n--- Checking ${payment.name} ---`);
@@ -218,7 +219,39 @@
                                 };
                                 newTransactions.push(newTransaction);
                                 console.log('  Created transaction:', newTransaction);
-                                hasChanges = true;
+                                hasTransactionChanges = true;
+                                
+                                // Update linked debt if exists and transaction was created
+                                if (payment.linkedDebt) {
+                                    console.log('  Updating linked debt:', payment.linkedDebt);
+                                    const linkedDebtIndex = updatedDebts.findIndex(d => d.id === parseInt(payment.linkedDebt));
+                                    if (linkedDebtIndex !== -1) {
+                                        const debt = updatedDebts[linkedDebtIndex];
+                                        const interestRate = parseFloat(debt.interestRate) || 0;
+                                        const monthlyInterestRate = interestRate / 100 / 12;
+                                        const interestAccrued = debt.currentBalance * monthlyInterestRate;
+                                        const principalPaid = payment.amount - interestAccrued;
+                                        const newBalance = Math.max(0, debt.currentBalance - principalPaid);
+                                        
+                                        const transactionLog = debt.transactionLog || [];
+                                        const logEntry = {
+                                            date: getLocalDateString(paymentDate),
+                                            paymentAmount: payment.amount,
+                                            interestAccrued: interestAccrued,
+                                            principalPaid: principalPaid,
+                                            balanceBefore: debt.currentBalance,
+                                            balanceAfter: newBalance
+                                        };
+                                        
+                                        updatedDebts[linkedDebtIndex] = {
+                                            ...debt,
+                                            currentBalance: newBalance,
+                                            transactionLog: [...transactionLog, logEntry]
+                                        };
+                                        console.log('  Debt updated:', updatedDebts[linkedDebtIndex].name);
+                                        hasDebtChanges = true;
+                                    }
+                                }
                             }
                             
                             // Mark as paid using functional form to preserve manual toggles
@@ -231,49 +264,22 @@
                                 console.log('  Already marked paid:', prevPaid[paymentKey]);
                                 return prevPaid;
                             });
-                            
-                            // Update linked debt if exists and transaction was created
-                            if (payment.linkedDebt && !transactionExists) {
-                                console.log('  Updating linked debt:', payment.linkedDebt);
-                                const linkedDebtIndex = updatedDebts.findIndex(d => d.id === parseInt(payment.linkedDebt));
-                                if (linkedDebtIndex !== -1) {
-                                    const debt = updatedDebts[linkedDebtIndex];
-                                    const interestRate = parseFloat(debt.interestRate) || 0;
-                                    const monthlyInterestRate = interestRate / 100 / 12;
-                                    const interestAccrued = debt.currentBalance * monthlyInterestRate;
-                                    const principalPaid = payment.amount - interestAccrued;
-                                    const newBalance = Math.max(0, debt.currentBalance - principalPaid);
-                                    
-                                    const transactionLog = debt.transactionLog || [];
-                                    const logEntry = {
-                                        date: getLocalDateString(paymentDate),
-                                        paymentAmount: payment.amount,
-                                        interestAccrued: interestAccrued,
-                                        principalPaid: principalPaid,
-                                        balanceBefore: debt.currentBalance,
-                                        balanceAfter: newBalance
-                                    };
-                                    
-                                    updatedDebts[linkedDebtIndex] = {
-                                        ...debt,
-                                        currentBalance: newBalance,
-                                        transactionLog: [...transactionLog, logEntry]
-                                    };
-                                    console.log('  Debt updated:', updatedDebts[linkedDebtIndex].name);
-                                    hasChanges = true;
-                                }
-                            }
                         }
                     });
                     
                     console.log('\n--- Summary ---');
-                    console.log('Has changes:', hasChanges);
+                    console.log('Has transaction changes:', hasTransactionChanges);
+                    console.log('Has debt changes:', hasDebtChanges);
                     console.log('New transactions count:', newTransactions.length);
                     console.log('Transactions added:', newTransactions.length - transactions.length);
                     
-                    if (hasChanges) {
-                        console.log('💾 Saving changes to state');
+                    if (hasTransactionChanges) {
+                        console.log('💾 Saving transactions to state');
                         setTransactions(newTransactions);
+                    }
+                    
+                    if (hasDebtChanges) {
+                        console.log('💾 Saving debts to state');
                         setDebts(updatedDebts);
                     }
                 }, 500); // Wait 500ms for data to load
@@ -477,7 +483,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.11.8 | Fix Manual Toggle Persistence</div>
+                        <div className="version">v1.11.9 | Fix Debt Disappearance</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
