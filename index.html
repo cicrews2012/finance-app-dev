@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.11.4</title>
+    <title>Finance Tracker v1.11.5</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -152,6 +152,10 @@
                 const timer = setTimeout(() => {
                     if (recurringPayments.length === 0) return;
                     
+                    console.log('🚀 ORIGINAL AUTO-PAY SYSTEM RUNNING');
+                    console.log('Today:', today);
+                    console.log('Transactions before:', transactions.length);
+                    
                     lastProcessedDate.current = today; // Mark as processed for today
                     
                     const monthKey = getMonthKey(currentMonth);
@@ -163,12 +167,20 @@
                     let hasChanges = false;
                     
                     recurringPayments.forEach(payment => {
+                    console.log(`\n--- Checking ${payment.name} ---`);
+                    
                     // Skip if not auto-pay
-                    if (!payment.auto) return;
+                    if (!payment.auto) {
+                        console.log('  Skipped: Not auto-pay');
+                        return;
+                    }
                     
                     // Skip if already marked as paid this month
                     const paymentKey = `${monthKey}-${payment.id}`;
-                    if (newPaidPayments[paymentKey]) return;
+                    if (newPaidPayments[paymentKey]) {
+                        console.log('  Skipped: Already marked as paid');
+                        return;
+                    }
                     
                     // Calculate payment date
                     let paymentDate;
@@ -177,6 +189,9 @@
                     } else {
                         paymentDate = new Date(start.getFullYear(), start.getMonth() + 1, payment.dueDay);
                     }
+                    
+                    console.log('  Payment date:', paymentDate);
+                    console.log('  Due date passed:', todayDate >= paymentDate);
                     
                     // Check if due date has passed
                     if (todayDate >= paymentDate) {
@@ -207,7 +222,10 @@
                             return allWordsMatch;
                         });
                         
+                        console.log('  Transaction exists:', transactionExists);
+                        
                         if (!transactionExists) {
+                            console.log('  ✅ CREATING TRANSACTION');
                             // Auto-create transaction
                             newTransactions.push({
                                 type: 'expense',
@@ -222,11 +240,13 @@
                         }
                         
                         // Mark as paid
+                        console.log('  Marking as paid');
                         newPaidPayments[paymentKey] = true;
                         hasChanges = true;
                         
                         // Update linked debt if exists
                         if (payment.linkedDebt) {
+                            console.log('  Updating linked debt');
                             const linkedDebtIndex = debts.findIndex(d => d.id === parseInt(payment.linkedDebt));
                             if (linkedDebtIndex !== -1) {
                                 const debt = debts[linkedDebtIndex];
@@ -256,7 +276,13 @@
                     }
                 });
                 
+                console.log('\n--- Summary ---');
+                console.log('Has changes:', hasChanges);
+                console.log('New transactions count:', newTransactions.length);
+                console.log('Transactions added:', newTransactions.length - transactions.length);
+                
                 if (hasChanges) {
+                    console.log('💾 Saving changes to state');
                     setTransactions(newTransactions);
                     setPaidPayments(newPaidPayments);
                     setDebts([...debts]); // Save updated debts
@@ -462,7 +488,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.11.4 | Auto-Pay Debug + Better Logging</div>
+                        <div className="version">v1.11.5 | Debug Original Auto-Pay System</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
