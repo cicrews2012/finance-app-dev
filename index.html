@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.11.5</title>
+    <title>Finance Tracker v1.11.6</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -129,7 +129,6 @@
             const [paidPayments, setPaidPayments] = useState({});
             const [currentMonth, setCurrentMonth] = useState(getCurrentFinancialMonth());
             const [expectedMonthlyIncome, setExpectedMonthlyIncome] = useState(5000);
-            const lastProcessedDate = useRef(null);
 
             useEffect(() => {
                 // No localStorage - app starts empty
@@ -141,22 +140,14 @@
 
             // Auto-process recurring payments when their due date passes
             useEffect(() => {
-                const today = new Date().toDateString();
-                
-                // Only process once per day
-                if (lastProcessedDate.current === today) {
-                    return;
-                }
-                
-                // Small delay to let data load, then run auto-process
+                // Run immediately when data loads or month changes
                 const timer = setTimeout(() => {
                     if (recurringPayments.length === 0) return;
                     
-                    console.log('🚀 ORIGINAL AUTO-PAY SYSTEM RUNNING');
-                    console.log('Today:', today);
+                    console.log('🚀 AUTO-PAY SYSTEM RUNNING');
+                    console.log('Current month:', currentMonth);
                     console.log('Transactions before:', transactions.length);
-                    
-                    lastProcessedDate.current = today; // Mark as processed for today
+                    console.log('Recurring payments:', recurringPayments.length);
                     
                     const monthKey = getMonthKey(currentMonth);
                     const todayDate = new Date();
@@ -164,133 +155,130 @@
                     
                     let newTransactions = [...transactions];
                     let newPaidPayments = {...paidPayments};
+                    let updatedDebts = [...debts];
                     let hasChanges = false;
                     
                     recurringPayments.forEach(payment => {
-                    console.log(`\n--- Checking ${payment.name} ---`);
-                    
-                    // Skip if not auto-pay
-                    if (!payment.auto) {
-                        console.log('  Skipped: Not auto-pay');
-                        return;
-                    }
-                    
-                    // Skip if already marked as paid this month
-                    const paymentKey = `${monthKey}-${payment.id}`;
-                    if (newPaidPayments[paymentKey]) {
-                        console.log('  Skipped: Already marked as paid');
-                        return;
-                    }
-                    
-                    // Calculate payment date
-                    let paymentDate;
-                    if (payment.dueDay >= 28) {
-                        paymentDate = new Date(start.getFullYear(), start.getMonth(), payment.dueDay);
-                    } else {
-                        paymentDate = new Date(start.getFullYear(), start.getMonth() + 1, payment.dueDay);
-                    }
-                    
-                    console.log('  Payment date:', paymentDate);
-                    console.log('  Due date passed:', todayDate >= paymentDate);
-                    
-                    // Check if due date has passed
-                    if (todayDate >= paymentDate) {
-                        // Check if transaction already exists for this payment
-                        const transactionExists = newTransactions.some(t => {
-                            if (t.type !== 'expense') return false;
-                            
-                            // Check if date is within current financial month
-                            const tDate = parseLocalDate(t.date);
-                            if (tDate < start || tDate > new Date(start.getFullYear(), start.getMonth() + 1, 27)) return false;
-                            
-                            // Check if amounts are similar (within $1)
-                            const amountMatch = Math.abs(parseFloat(t.amount) - parseFloat(payment.amount)) < 1.0;
-                            if (!amountMatch) return false;
-                            
-                            // Check if categories match (if payment has category)
-                            if (payment.category && t.category) {
-                                if (payment.category.toLowerCase() !== t.category.toLowerCase()) return false;
-                            }
-                            
-                            // Check if description contains ALL significant words from payment name (3+ chars)
-                            const paymentWords = payment.name.toLowerCase().split(/\s+/).filter(w => w.length >= 3);
-                            const descWords = t.description.toLowerCase();
-                            
-                            // Require ALL words to match, not just one
-                            const allWordsMatch = paymentWords.every(word => descWords.includes(word));
-                            
-                            return allWordsMatch;
-                        });
+                        console.log(`\n--- Checking ${payment.name} ---`);
                         
-                        console.log('  Transaction exists:', transactionExists);
+                        // Skip if not auto-pay
+                        if (!payment.auto) {
+                            console.log('  Skipped: Not auto-pay');
+                            return;
+                        }
                         
-                        if (!transactionExists) {
-                            console.log('  ✅ CREATING TRANSACTION');
-                            // Auto-create transaction
-                            newTransactions.push({
-                                type: 'expense',
-                                amount: parseFloat(payment.amount),
-                                description: `${payment.name} (Auto)`,
-                                category: payment.category,
-                                date: getLocalDateString(paymentDate),
-                                id: Date.now() + Math.random(),
-                                isRecurring: true
+                        // Calculate payment date
+                        let paymentDate;
+                        if (payment.dueDay >= 28) {
+                            paymentDate = new Date(start.getFullYear(), start.getMonth(), payment.dueDay);
+                        } else {
+                            paymentDate = new Date(start.getFullYear(), start.getMonth() + 1, payment.dueDay);
+                        }
+                        
+                        console.log('  Payment date:', paymentDate.toDateString());
+                        console.log('  Today:', todayDate.toDateString());
+                        console.log('  Due date passed:', todayDate >= paymentDate);
+                        
+                        // Check if due date has passed
+                        if (todayDate >= paymentDate) {
+                            const paymentKey = `${monthKey}-${payment.id}`;
+                            
+                            // Check if transaction already exists for this payment (simple check)
+                            const transactionExists = newTransactions.some(t => {
+                                // Must be expense in current financial month with matching amount
+                                if (t.type !== 'expense') return false;
+                                
+                                const tDate = parseLocalDate(t.date);
+                                const endDate = new Date(start.getFullYear(), start.getMonth() + 1, 27);
+                                if (tDate < start || tDate > endDate) return false;
+                                
+                                // Amount must match within $0.01
+                                if (Math.abs(parseFloat(t.amount) - parseFloat(payment.amount)) > 0.01) return false;
+                                
+                                // Description must contain payment name OR category must match
+                                const descMatch = t.description.toLowerCase().includes(payment.name.toLowerCase());
+                                const catMatch = payment.category && t.category && 
+                                                t.category.toLowerCase() === payment.category.toLowerCase();
+                                
+                                return descMatch || catMatch;
                             });
-                            hasChanges = true;
-                        }
-                        
-                        // Mark as paid
-                        console.log('  Marking as paid');
-                        newPaidPayments[paymentKey] = true;
-                        hasChanges = true;
-                        
-                        // Update linked debt if exists
-                        if (payment.linkedDebt) {
-                            console.log('  Updating linked debt');
-                            const linkedDebtIndex = debts.findIndex(d => d.id === parseInt(payment.linkedDebt));
-                            if (linkedDebtIndex !== -1) {
-                                const debt = debts[linkedDebtIndex];
-                                const interestRate = parseFloat(debt.interestRate) || 0;
-                                const monthlyInterestRate = interestRate / 100 / 12;
-                                const interestAccrued = debt.currentBalance * monthlyInterestRate;
-                                const principalPaid = payment.amount - interestAccrued;
-                                const newBalance = Math.max(0, debt.currentBalance - principalPaid);
-                                
-                                const transactionLog = debt.transactionLog || [];
-                                const logEntry = {
+                            
+                            console.log('  Transaction exists:', transactionExists);
+                            console.log('  Already marked paid:', newPaidPayments[paymentKey]);
+                            
+                            // Create transaction if it doesn't exist
+                            if (!transactionExists) {
+                                console.log('  ✅ CREATING TRANSACTION');
+                                const newTransaction = {
+                                    type: 'expense',
+                                    amount: parseFloat(payment.amount),
+                                    description: `${payment.name} (Auto)`,
+                                    category: payment.category,
                                     date: getLocalDateString(paymentDate),
-                                    paymentAmount: payment.amount,
-                                    interestAccrued: interestAccrued,
-                                    principalPaid: principalPaid,
-                                    balanceBefore: debt.currentBalance,
-                                    balanceAfter: newBalance
+                                    id: Date.now() + Math.random(),
+                                    isRecurring: true
                                 };
-                                
-                                debts[linkedDebtIndex] = {
-                                    ...debt,
-                                    currentBalance: newBalance,
-                                    transactionLog: [...transactionLog, logEntry]
-                                };
+                                newTransactions.push(newTransaction);
+                                console.log('  Created transaction:', newTransaction);
+                                hasChanges = true;
+                            }
+                            
+                            // Mark as paid if not already
+                            if (!newPaidPayments[paymentKey]) {
+                                console.log('  Marking as paid');
+                                newPaidPayments[paymentKey] = true;
+                                hasChanges = true;
+                            }
+                            
+                            // Update linked debt if exists
+                            if (payment.linkedDebt && !transactionExists) {
+                                console.log('  Updating linked debt:', payment.linkedDebt);
+                                const linkedDebtIndex = updatedDebts.findIndex(d => d.id === parseInt(payment.linkedDebt));
+                                if (linkedDebtIndex !== -1) {
+                                    const debt = updatedDebts[linkedDebtIndex];
+                                    const interestRate = parseFloat(debt.interestRate) || 0;
+                                    const monthlyInterestRate = interestRate / 100 / 12;
+                                    const interestAccrued = debt.currentBalance * monthlyInterestRate;
+                                    const principalPaid = payment.amount - interestAccrued;
+                                    const newBalance = Math.max(0, debt.currentBalance - principalPaid);
+                                    
+                                    const transactionLog = debt.transactionLog || [];
+                                    const logEntry = {
+                                        date: getLocalDateString(paymentDate),
+                                        paymentAmount: payment.amount,
+                                        interestAccrued: interestAccrued,
+                                        principalPaid: principalPaid,
+                                        balanceBefore: debt.currentBalance,
+                                        balanceAfter: newBalance
+                                    };
+                                    
+                                    updatedDebts[linkedDebtIndex] = {
+                                        ...debt,
+                                        currentBalance: newBalance,
+                                        transactionLog: [...transactionLog, logEntry]
+                                    };
+                                    console.log('  Debt updated:', updatedDebts[linkedDebtIndex].name);
+                                    hasChanges = true;
+                                }
                             }
                         }
+                    });
+                    
+                    console.log('\n--- Summary ---');
+                    console.log('Has changes:', hasChanges);
+                    console.log('New transactions count:', newTransactions.length);
+                    console.log('Transactions added:', newTransactions.length - transactions.length);
+                    
+                    if (hasChanges) {
+                        console.log('💾 Saving changes to state');
+                        setTransactions(newTransactions);
+                        setPaidPayments(newPaidPayments);
+                        setDebts(updatedDebts);
                     }
-                });
-                
-                console.log('\n--- Summary ---');
-                console.log('Has changes:', hasChanges);
-                console.log('New transactions count:', newTransactions.length);
-                console.log('Transactions added:', newTransactions.length - transactions.length);
-                
-                if (hasChanges) {
-                    console.log('💾 Saving changes to state');
-                    setTransactions(newTransactions);
-                    setPaidPayments(newPaidPayments);
-                    setDebts([...debts]); // Save updated debts
-                }
                 }, 500); // Wait 500ms for data to load
                 
-                return () => clearTimeout(timer); // Cleanup
-            }, [currentMonth]); // Run on month change
+                return () => clearTimeout(timer);
+            }, [currentMonth, recurringPayments.length, transactions.length]); // Run when month changes or data loads
 
             const getMonthlyTotals = () => {
                 const { start, end } = getFinancialMonthRange(currentMonth);
@@ -488,7 +476,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.11.5 | Debug Original Auto-Pay System</div>
+                        <div className="version">v1.11.6 | Fix Auto-Pay Transaction Creation</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
