@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.11.7</title>
+    <title>Finance Tracker v1.11.8</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -154,7 +154,6 @@
                     const { start } = getFinancialMonthRange(currentMonth);
                     
                     let newTransactions = [...transactions];
-                    let newPaidPayments = {...paidPayments};
                     let updatedDebts = [...debts];
                     let hasChanges = false;
                     
@@ -204,7 +203,6 @@
                             });
                             
                             console.log('  Transaction exists:', transactionExists);
-                            console.log('  Already marked paid:', newPaidPayments[paymentKey]);
                             
                             // Create transaction if it doesn't exist
                             if (!transactionExists) {
@@ -223,14 +221,18 @@
                                 hasChanges = true;
                             }
                             
-                            // Mark as paid if not already
-                            if (!newPaidPayments[paymentKey]) {
-                                console.log('  Marking as paid');
-                                newPaidPayments[paymentKey] = true;
-                                hasChanges = true;
-                            }
+                            // Mark as paid using functional form to preserve manual toggles
+                            setPaidPayments(prevPaid => {
+                                // Only update if not already paid
+                                if (!prevPaid[paymentKey]) {
+                                    console.log('  Marking as paid');
+                                    return {...prevPaid, [paymentKey]: true};
+                                }
+                                console.log('  Already marked paid:', prevPaid[paymentKey]);
+                                return prevPaid;
+                            });
                             
-                            // Update linked debt if exists
+                            // Update linked debt if exists and transaction was created
                             if (payment.linkedDebt && !transactionExists) {
                                 console.log('  Updating linked debt:', payment.linkedDebt);
                                 const linkedDebtIndex = updatedDebts.findIndex(d => d.id === parseInt(payment.linkedDebt));
@@ -272,13 +274,12 @@
                     if (hasChanges) {
                         console.log('💾 Saving changes to state');
                         setTransactions(newTransactions);
-                        setPaidPayments(newPaidPayments);
                         setDebts(updatedDebts);
                     }
                 }, 500); // Wait 500ms for data to load
                 
                 return () => clearTimeout(timer);
-            }, [currentMonth, recurringPayments.length, transactions.length]); // Run when month changes or data loads
+            }, [currentMonth, recurringPayments.length]); // Run when month changes or payments added/removed
 
             const getMonthlyTotals = () => {
                 const { start, end } = getFinancialMonthRange(currentMonth);
@@ -476,7 +477,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.11.7 | Fix Manual Payment Toggle</div>
+                        <div className="version">v1.11.8 | Fix Manual Toggle Persistence</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
