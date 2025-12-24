@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.11.2</title>
+    <title>Finance Tracker v1.11.3</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -462,7 +462,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.11.2 | Fix Auto-Pay Transaction Creation</div>
+                        <div className="version">v1.11.3 | Fix Auto-Pay Transaction (For Real)</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -1233,11 +1233,12 @@
                                     isRecurring: true
                                 };
                                 
-                                setTransactions([...transactions, newTransaction]);
+                                // Use functional form to avoid stale closure
+                                setTransactions(prevTransactions => [...prevTransactions, newTransaction]);
                                 
                                 // Handle debt if linked
                                 if (payment.linkedDebt) {
-                                    setDebts(debts.map(debt => { 
+                                    setDebts(prevDebts => prevDebts.map(debt => { 
                                         if (debt.id === parseInt(payment.linkedDebt)) {
                                             const interestRate = parseFloat(debt.interestRate) || 0;
                                             const monthlyInterestRate = interestRate / 100 / 12;
@@ -1265,11 +1266,11 @@
                                     }));
                                 }
                                 
-                                // Mark as paid
-                                setPaidPayments({...paidPayments, [paymentKey]: true});
+                                // Mark as paid - use functional form
+                                setPaidPayments(prevPaid => ({...prevPaid, [paymentKey]: true}));
                             } else if (!isAlreadyPaid) {
                                 // Transaction exists but not marked paid, just mark it
-                                setPaidPayments({...paidPayments, [paymentKey]: true});
+                                setPaidPayments(prevPaid => ({...prevPaid, [paymentKey]: true}));
                             }
                         }
                     }
