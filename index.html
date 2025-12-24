@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.11.6</title>
+    <title>Finance Tracker v1.11.7</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -476,7 +476,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.11.6 | Fix Auto-Pay Transaction Creation</div>
+                        <div className="version">v1.11.7 | Fix Manual Payment Toggle</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -1206,112 +1206,11 @@
 
             const togglePaidStatus = (paymentId) => {
                 const paymentKey = `${monthKey}-${paymentId}`;
-                setPaidPayments({...paidPayments, [paymentKey]: !paidPayments[paymentKey]});
+                setPaidPayments(prevPaid => ({
+                    ...prevPaid, 
+                    [paymentKey]: !prevPaid[paymentKey]
+                }));
             };
-
-            // Auto-process payments when component mounts or month changes
-            React.useEffect(() => {
-                console.log('🔄 Auto-pay useEffect triggered');
-                console.log('Month key:', monthKey);
-                console.log('Recurring payments count:', recurringPayments.length);
-                
-                recurringPayments.forEach(payment => {
-                    console.log(`Checking payment: ${payment.name}, auto: ${payment.auto}, should be paid: ${shouldAutoPayBePaid(payment)}`);
-                    
-                    if (payment.auto && shouldAutoPayBePaid(payment)) {
-                        const paymentKey = `${monthKey}-${payment.id}`;
-                        const isAlreadyPaid = paidPayments[paymentKey];
-                        
-                        console.log(`  Payment ${payment.name} is due! Already paid: ${isAlreadyPaid}`);
-                        
-                        // Only process if not already paid this month
-                        if (!isAlreadyPaid) {
-                            // Check if transaction already exists for this payment this month
-                            const transactionExists = transactions.some(t => 
-                                t.description === `${payment.name} (Recurring)` &&
-                                t.amount === payment.amount &&
-                                parseLocalDate(t.date) >= getFinancialMonthRange(currentMonth).start &&
-                                parseLocalDate(t.date) <= getFinancialMonthRange(currentMonth).end
-                            );
-                            
-                            console.log(`  Transaction exists: ${transactionExists}`);
-                            
-                            if (!transactionExists) {
-                                console.log(`  ✅ Creating transaction for ${payment.name}`);
-                                
-                                // Auto-create transaction
-                                const { start } = getFinancialMonthRange(currentMonth);
-                                let paymentDate;
-                                if (payment.dueDay >= 28) {
-                                    paymentDate = new Date(start.getFullYear(), start.getMonth(), payment.dueDay);
-                                } else {
-                                    paymentDate = new Date(start.getFullYear(), start.getMonth() + 1, payment.dueDay);
-                                }
-                                
-                                const dateString = paymentDate.toISOString().split('T')[0];
-                                const newTransaction = { 
-                                    type: 'expense', 
-                                    amount: payment.amount, 
-                                    description: `${payment.name} (Recurring)`, 
-                                    category: payment.category, 
-                                    date: dateString, 
-                                    id: Date.now() + Math.random(),
-                                    isRecurring: true
-                                };
-                                
-                                console.log(`  Transaction object:`, newTransaction);
-                                
-                                // Use functional form to avoid stale closure
-                                setTransactions(prevTransactions => {
-                                    console.log(`  Previous transactions count: ${prevTransactions.length}`);
-                                    const updated = [...prevTransactions, newTransaction];
-                                    console.log(`  New transactions count: ${updated.length}`);
-                                    return updated;
-                                });
-                                
-                                // Handle debt if linked
-                                if (payment.linkedDebt) {
-                                    console.log(`  Updating linked debt: ${payment.linkedDebt}`);
-                                    setDebts(prevDebts => prevDebts.map(debt => { 
-                                        if (debt.id === parseInt(payment.linkedDebt)) {
-                                            const interestRate = parseFloat(debt.interestRate) || 0;
-                                            const monthlyInterestRate = interestRate / 100 / 12;
-                                            const interestAccrued = debt.currentBalance * monthlyInterestRate;
-                                            const principalPaid = payment.amount - interestAccrued;
-                                            const newBalance = Math.max(0, debt.currentBalance - principalPaid);
-                                            
-                                            const transactionLog = debt.transactionLog || [];
-                                            const logEntry = {
-                                                date: dateString,
-                                                paymentAmount: payment.amount,
-                                                interestAccrued: interestAccrued,
-                                                principalPaid: principalPaid,
-                                                balanceBefore: debt.currentBalance,
-                                                balanceAfter: newBalance
-                                            };
-                                            
-                                            return { 
-                                                ...debt, 
-                                                currentBalance: newBalance,
-                                                transactionLog: [...transactionLog, logEntry]
-                                            }; 
-                                        } 
-                                        return debt; 
-                                    }));
-                                }
-                                
-                                // Mark as paid - use functional form
-                                setPaidPayments(prevPaid => ({...prevPaid, [paymentKey]: true}));
-                                console.log(`  ✅ Marked ${payment.name} as paid`);
-                            } else if (!isAlreadyPaid) {
-                                console.log(`  Transaction exists but not marked paid, marking now`);
-                                // Transaction exists but not marked paid, just mark it
-                                setPaidPayments(prevPaid => ({...prevPaid, [paymentKey]: true}));
-                            }
-                        }
-                    }
-                });
-            }, [monthKey, recurringPayments.length]); // Run when month changes or payments added
 
             return (
                 <div>
