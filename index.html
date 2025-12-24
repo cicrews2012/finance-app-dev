@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.11.0</title>
+    <title>Finance Tracker v1.11.2</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -462,7 +462,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.11.0 | Bulk Transaction Entry</div>
+                        <div className="version">v1.11.2 | Fix Auto-Pay Transaction Creation</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -488,9 +488,22 @@
 
         function DashboardTab({ totals, totalDebt, unpaidRecurring, currentMonth, transactions, recurringPayments, debts, expectedMonthlyIncome, importData }) {
             const [debtsCollapsed, setDebtsCollapsed] = useState(false);
+            const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
             const fileInputRef = React.useRef(null); // Move ref to top level
             const monthName = currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
             const { start, end } = getFinancialMonthRange(currentMonth);
+            
+            // Get available years from transactions
+            const availableYears = [...new Set(transactions.map(t => {
+                const tDate = parseLocalDate(t.date);
+                return tDate.getFullYear();
+            }))].sort((a, b) => b - a); // Sort descending
+            
+            // Add current year if not in list
+            const currentYear = new Date().getFullYear();
+            if (!availableYears.includes(currentYear)) {
+                availableYears.unshift(currentYear);
+            }
             
             // Simple Money Available calculation
             // Income - Recurring = Money Left
@@ -515,11 +528,10 @@
             const moneyAvailable = moneyLeft - spentSoFar - unpaidRecurring;
             
             const getYearlyTotals = () => {
-                const currentYear = new Date().getFullYear();
-                const yearlyTransactions = transactions.filter(t => { const tDate = parseLocalDate(t.date); return tDate.getFullYear() === currentYear; });
+                const yearlyTransactions = transactions.filter(t => { const tDate = parseLocalDate(t.date); return tDate.getFullYear() === selectedYear; });
                 const income = yearlyTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + parseFloat(t.amount), 0);
                 const expenses = yearlyTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + parseFloat(t.amount), 0);
-                return { income, expenses, net: income - expenses, year: currentYear };
+                return { income, expenses, net: income - expenses, year: selectedYear };
             };
             const yearlyTotals = getYearlyTotals();
 
@@ -585,6 +597,20 @@
 
             return (
                 <div>
+                    {availableYears.length > 0 && (
+                        <div style={{display: 'flex', justifyContent: 'flex-end', marginBottom: '20px', alignItems: 'center', gap: '10px'}}>
+                            <label style={{color: '#a0aec0', fontSize: '0.95em'}}>View Year:</label>
+                            <select 
+                                value={selectedYear} 
+                                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                                style={{padding: '8px 16px', fontSize: '1em', background: '#1a1f2e', color: '#e2e8f0', border: '2px solid #667eea', borderRadius: '8px', cursor: 'pointer'}}
+                            >
+                                {availableYears.map(year => (
+                                    <option key={year} value={year}>{year}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                     <div className="yearly-overview income"><h2>📈 Total Income {yearlyTotals.year}</h2><div className="amount">{formatCurrency(yearlyTotals.income)}</div></div>
                     <div className="yearly-overview expense"><h2>📉 Total Expenses {yearlyTotals.year}</h2><div className="amount">{formatCurrency(yearlyTotals.expenses)}</div></div>
                     <div className="yearly-overview net"><h2>💰 Net {yearlyTotals.year}</h2><div className={`amount ${yearlyTotals.net >= 0 ? 'positive' : 'negative'}`}>{formatCurrency(yearlyTotals.net)}</div></div>
@@ -1168,6 +1194,87 @@
                 const paymentKey = `${monthKey}-${paymentId}`;
                 setPaidPayments({...paidPayments, [paymentKey]: !paidPayments[paymentKey]});
             };
+
+            // Auto-process payments when component mounts or month changes
+            React.useEffect(() => {
+                recurringPayments.forEach(payment => {
+                    if (payment.auto && shouldAutoPayBePaid(payment)) {
+                        const paymentKey = `${monthKey}-${payment.id}`;
+                        const isAlreadyPaid = paidPayments[paymentKey];
+                        
+                        // Only process if not already paid this month
+                        if (!isAlreadyPaid) {
+                            // Check if transaction already exists for this payment this month
+                            const transactionExists = transactions.some(t => 
+                                t.description === `${payment.name} (Recurring)` &&
+                                t.amount === payment.amount &&
+                                parseLocalDate(t.date) >= getFinancialMonthRange(currentMonth).start &&
+                                parseLocalDate(t.date) <= getFinancialMonthRange(currentMonth).end
+                            );
+                            
+                            if (!transactionExists) {
+                                // Auto-create transaction
+                                const { start } = getFinancialMonthRange(currentMonth);
+                                let paymentDate;
+                                if (payment.dueDay >= 28) {
+                                    paymentDate = new Date(start.getFullYear(), start.getMonth(), payment.dueDay);
+                                } else {
+                                    paymentDate = new Date(start.getFullYear(), start.getMonth() + 1, payment.dueDay);
+                                }
+                                
+                                const dateString = paymentDate.toISOString().split('T')[0];
+                                const newTransaction = { 
+                                    type: 'expense', 
+                                    amount: payment.amount, 
+                                    description: `${payment.name} (Recurring)`, 
+                                    category: payment.category, 
+                                    date: dateString, 
+                                    id: Date.now() + Math.random(),
+                                    isRecurring: true
+                                };
+                                
+                                setTransactions([...transactions, newTransaction]);
+                                
+                                // Handle debt if linked
+                                if (payment.linkedDebt) {
+                                    setDebts(debts.map(debt => { 
+                                        if (debt.id === parseInt(payment.linkedDebt)) {
+                                            const interestRate = parseFloat(debt.interestRate) || 0;
+                                            const monthlyInterestRate = interestRate / 100 / 12;
+                                            const interestAccrued = debt.currentBalance * monthlyInterestRate;
+                                            const principalPaid = payment.amount - interestAccrued;
+                                            const newBalance = Math.max(0, debt.currentBalance - principalPaid);
+                                            
+                                            const transactionLog = debt.transactionLog || [];
+                                            const logEntry = {
+                                                date: dateString,
+                                                paymentAmount: payment.amount,
+                                                interestAccrued: interestAccrued,
+                                                principalPaid: principalPaid,
+                                                balanceBefore: debt.currentBalance,
+                                                balanceAfter: newBalance
+                                            };
+                                            
+                                            return { 
+                                                ...debt, 
+                                                currentBalance: newBalance,
+                                                transactionLog: [...transactionLog, logEntry]
+                                            }; 
+                                        } 
+                                        return debt; 
+                                    }));
+                                }
+                                
+                                // Mark as paid
+                                setPaidPayments({...paidPayments, [paymentKey]: true});
+                            } else if (!isAlreadyPaid) {
+                                // Transaction exists but not marked paid, just mark it
+                                setPaidPayments({...paidPayments, [paymentKey]: true});
+                            }
+                        }
+                    }
+                });
+            }, [monthKey, recurringPayments.length]); // Run when month changes or payments added
 
             return (
                 <div>
