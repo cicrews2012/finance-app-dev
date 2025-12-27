@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.11.12</title>
+    <title>Finance Tracker v1.11.13</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -483,7 +483,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.11.12 | CSV Export + Advanced Search/Filter</div>
+                        <div className="version">v1.11.13 | Quick Add Recurring Payment for Debts</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -499,7 +499,7 @@
                         {activeTab === 'budget' && <BudgetTab transactions={transactions} recurringPayments={recurringPayments} expectedMonthlyIncome={expectedMonthlyIncome} setExpectedMonthlyIncome={setExpectedMonthlyIncome} currentMonth={currentMonth} unpaidRecurring={unpaidRecurring} />}
                         {activeTab === 'transactions' && <TransactionsTab transactions={transactions} setTransactions={setTransactions} currentMonth={currentMonth} expenseCategories={expenseCategories} incomeCategories={incomeCategories} debts={debts} setDebts={setDebts} />}
                         {activeTab === 'recurring' && <RecurringTab recurringPayments={recurringPayments} setRecurringPayments={setRecurringPayments} debts={debts} setDebts={setDebts} transactions={transactions} setTransactions={setTransactions} paidPayments={paidPayments} setPaidPayments={setPaidPayments} currentMonth={currentMonth} />}
-                        {activeTab === 'debts' && <DebtsTab debts={debts} setDebts={setDebts} />}
+                        {activeTab === 'debts' && <DebtsTab debts={debts} setDebts={setDebts} recurringPayments={recurringPayments} setRecurringPayments={setRecurringPayments} />}
                         {activeTab === 'payoff' && <PayoffStrategiesTab debts={debts} />}
                         {activeTab === 'settings' && <SettingsTab exportData={exportData} importData={importData} clearAllData={clearAllData} />}
                     </div>
@@ -1541,12 +1541,42 @@
             );
         }
 
-        function DebtsTab({ debts, setDebts }) {
-            const [formData, setFormData] = useState({ name: '', originalBalance: '', currentBalance: '', interestRate: '', minimumPayment: '', category: 'Credit Card' });
+        function DebtsTab({ debts, setDebts, recurringPayments, setRecurringPayments }) {
+            const [formData, setFormData] = useState({ name: '', originalBalance: '', currentBalance: '', interestRate: '', minimumPayment: '', category: 'Credit Card', dueDay: '', createRecurring: false, autoPayRecurring: false });
             const [expandedDebt, setExpandedDebt] = useState(null);
             const [editingDebt, setEditingDebt] = useState(null);
             
-            const handleSubmit = (e) => { e.preventDefault(); if (formData.name && formData.currentBalance) { setDebts([...debts, { ...formData, originalBalance: parseFloat(formData.originalBalance) || parseFloat(formData.currentBalance), currentBalance: parseFloat(formData.currentBalance), interestRate: parseFloat(formData.interestRate) || 0, minimumPayment: parseFloat(formData.minimumPayment) || 0, id: Date.now() }]); setFormData({ name: '', originalBalance: '', currentBalance: '', interestRate: '', minimumPayment: '', category: 'Credit Card' }); } };
+            const handleSubmit = (e) => { 
+                e.preventDefault(); 
+                if (formData.name && formData.currentBalance) { 
+                    const newDebt = { 
+                        ...formData, 
+                        originalBalance: parseFloat(formData.originalBalance) || parseFloat(formData.currentBalance), 
+                        currentBalance: parseFloat(formData.currentBalance), 
+                        interestRate: parseFloat(formData.interestRate) || 0, 
+                        minimumPayment: parseFloat(formData.minimumPayment) || 0, 
+                        id: Date.now() 
+                    };
+                    
+                    setDebts([...debts, newDebt]);
+                    
+                    // If user wants to create recurring payment
+                    if (formData.createRecurring && formData.minimumPayment && formData.dueDay) {
+                        const newRecurringPayment = {
+                            id: Date.now() + 1, // Slightly different ID
+                            name: formData.name + ' Payment',
+                            amount: parseFloat(formData.minimumPayment),
+                            category: 'Debt',
+                            dueDay: parseInt(formData.dueDay),
+                            linkedDebt: newDebt.id.toString(),
+                            auto: formData.autoPayRecurring
+                        };
+                        setRecurringPayments([...recurringPayments, newRecurringPayment]);
+                    }
+                    
+                    setFormData({ name: '', originalBalance: '', currentBalance: '', interestRate: '', minimumPayment: '', category: 'Credit Card', dueDay: '', createRecurring: false, autoPayRecurring: false }); 
+                } 
+            };
             const deleteDebt = (id) => setDebts(debts.filter(d => d.id !== id));
             
             const handleEdit = (debt) => {
@@ -1599,7 +1629,61 @@
                                 <div className="form-group"><label>Interest Rate (%)</label><input type="number" step="0.01" value={formData.interestRate} onChange={(e) => setFormData({...formData, interestRate: e.target.value})} placeholder="0.00" /></div>
                                 <div className="form-group"><label>Minimum Payment</label><input type="number" step="0.01" value={formData.minimumPayment} onChange={(e) => setFormData({...formData, minimumPayment: e.target.value})} placeholder="0.00" /></div>
                             </div>
-                            <button type="submit">Add Debt</button>
+                            
+                            {/* Recurring Payment Option */}
+                            <div style={{marginTop: '20px', padding: '20px', background: '#1a1f2e', borderRadius: '10px', border: '2px solid #667eea'}}>
+                                <div style={{display: 'flex', alignItems: 'center', marginBottom: '15px'}}>
+                                    <input 
+                                        type="checkbox" 
+                                        id="createRecurring" 
+                                        checked={formData.createRecurring} 
+                                        onChange={(e) => setFormData({...formData, createRecurring: e.target.checked})}
+                                        style={{marginRight: '10px', width: '20px', height: '20px', cursor: 'pointer'}}
+                                    />
+                                    <label htmlFor="createRecurring" style={{color: '#667eea', fontSize: '1.1em', fontWeight: '600', cursor: 'pointer', margin: 0}}>
+                                        ➕ Also Create Recurring Payment
+                                    </label>
+                                </div>
+                                
+                                {formData.createRecurring && (
+                                    <div>
+                                        <p style={{color: '#a0aec0', fontSize: '0.9em', marginBottom: '15px'}}>
+                                            This will automatically create a recurring payment in the Recurring tab using the minimum payment amount.
+                                        </p>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label>Payment Due Day</label>
+                                                <input 
+                                                    type="number" 
+                                                    min="1" 
+                                                    max="31" 
+                                                    value={formData.dueDay} 
+                                                    onChange={(e) => setFormData({...formData, dueDay: e.target.value})} 
+                                                    placeholder="e.g., 15" 
+                                                    required={formData.createRecurring}
+                                                />
+                                                <p style={{color: '#a0aec0', fontSize: '0.85em', marginTop: '5px'}}>
+                                                    Day of month payment is due (1-31)
+                                                </p>
+                                            </div>
+                                            <div className="form-group" style={{display: 'flex', alignItems: 'center', paddingTop: '20px'}}>
+                                                <input 
+                                                    type="checkbox" 
+                                                    id="autoPayRecurring" 
+                                                    checked={formData.autoPayRecurring} 
+                                                    onChange={(e) => setFormData({...formData, autoPayRecurring: e.target.checked})}
+                                                    style={{marginRight: '10px', width: '20px', height: '20px', cursor: 'pointer'}}
+                                                />
+                                                <label htmlFor="autoPayRecurring" style={{cursor: 'pointer', margin: 0}}>
+                                                    Auto-pay (automatically creates transaction on due date)
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            
+                            <button type="submit" style={{marginTop: '20px'}}>Add Debt{formData.createRecurring ? ' & Recurring Payment' : ''}</button>
                         </form>
                     </div>
                     <div className="section">
