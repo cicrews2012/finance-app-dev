@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Finance Tracker v1.11.14</title>
+    <!-- Cache buster: v1.11.14-fixed-2025-12-27 -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -1314,7 +1315,8 @@
         }
 
         function PaymentCalendar({ recurringPayments, paidPayments, monthKey, currentMonth, togglePaidStatus, debts }) {
-            const { start } = getFinancialMonthRange(currentMonth);
+            const monthRange = getFinancialMonthRange(currentMonth);
+            const start = monthRange.start;
             const startDay = start.getDate();
             const startMonth = start.getMonth();
             const startYear = start.getFullYear();
