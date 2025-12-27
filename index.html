@@ -1313,7 +1313,7 @@
             );
         }
 
-        function PaymentCalendar({ recurringPayments, paidPayments, monthKey, currentMonth, togglePaymentStatus, debts }) {
+        function PaymentCalendar({ recurringPayments, paidPayments, monthKey, currentMonth, togglePaidStatus, debts }) {
             const { start } = getFinancialMonthRange(currentMonth);
             const startDay = start.getDate();
             const startMonth = start.getMonth();
@@ -1383,7 +1383,7 @@
                                                             cursor: 'pointer',
                                                             transition: 'all 0.2s'
                                                         }}
-                                                        onClick={() => togglePaymentStatus(payment.id)}
+                                                        onClick={() => togglePaidStatus(payment.id)}
                                                         title={`Click to mark as ${isPaid ? 'unpaid' : 'paid'}`}
                                                     >
                                                         <div style={{display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '3px'}}>
@@ -1603,7 +1603,7 @@
                                 paidPayments={paidPayments}
                                 monthKey={monthKey}
                                 currentMonth={currentMonth}
-                                togglePaymentStatus={togglePaymentStatus}
+                                togglePaidStatus={togglePaidStatus}
                                 debts={debts}
                             />
                         ) : (
