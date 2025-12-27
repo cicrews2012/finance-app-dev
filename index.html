@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.11.13</title>
+    <title>Finance Tracker v1.11.14</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -483,7 +483,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.11.13 | Quick Add Recurring Payment for Debts</div>
+                        <div className="version">v1.11.14 | Recurring Payment Calendar View</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -1313,9 +1313,137 @@
             );
         }
 
+        function PaymentCalendar({ recurringPayments, paidPayments, monthKey, currentMonth, togglePaymentStatus, debts }) {
+            const { start } = getFinancialMonthRange(currentMonth);
+            const startDay = start.getDate();
+            const startMonth = start.getMonth();
+            const startYear = start.getFullYear();
+            
+            // Generate calendar days for the financial month (28th to 27th)
+            const calendarDays = [];
+            for (let i = 0; i < 30; i++) {
+                const date = new Date(startYear, startMonth, startDay + i);
+                const day = date.getDate();
+                const paymentsOnDay = recurringPayments.filter(p => parseInt(p.dueDay) === day);
+                
+                calendarDays.push({
+                    date: date,
+                    day: day,
+                    dayOfWeek: date.toLocaleDateString('en-US', { weekday: 'short' }),
+                    monthName: date.toLocaleDateString('en-US', { month: 'short' }),
+                    payments: paymentsOnDay,
+                    isToday: new Date().toDateString() === date.toDateString()
+                });
+            }
+            
+            return (
+                <div style={{background: '#1a1f2e', padding: '20px', borderRadius: '10px', border: '2px solid #667eea'}}>
+                    <h3 style={{color: '#667eea', marginBottom: '20px'}}>📅 Payment Calendar - {currentMonth}</h3>
+                    <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '10px'}}>
+                        {calendarDays.map((calDay, idx) => {
+                            const hasPayments = calDay.payments.length > 0;
+                            const allPaid = hasPayments && calDay.payments.every(p => paidPayments[`${monthKey}-${p.id}`]);
+                            const somePaid = hasPayments && !allPaid && calDay.payments.some(p => paidPayments[`${monthKey}-${p.id}`]);
+                            
+                            return (
+                                <div 
+                                    key={idx}
+                                    style={{
+                                        background: calDay.isToday ? '#667eea22' : '#0f1419',
+                                        border: `2px solid ${calDay.isToday ? '#667eea' : (hasPayments ? (allPaid ? '#28a745' : (somePaid ? '#ffc107' : '#dc3545')) : '#2d3748')}`,
+                                        borderRadius: '8px',
+                                        padding: '10px',
+                                        minHeight: '100px',
+                                        position: 'relative'
+                                    }}
+                                >
+                                    <div style={{marginBottom: '8px', borderBottom: '1px solid #2d3748', paddingBottom: '5px'}}>
+                                        <div style={{color: '#667eea', fontWeight: '600', fontSize: '0.85em'}}>{calDay.dayOfWeek}</div>
+                                        <div style={{color: '#e2e8f0', fontSize: '1.2em', fontWeight: '700'}}>{calDay.day}</div>
+                                        <div style={{color: '#a0aec0', fontSize: '0.75em'}}>{calDay.monthName}</div>
+                                    </div>
+                                    
+                                    {calDay.payments.length === 0 ? (
+                                        <div style={{color: '#4a5568', fontSize: '0.8em', fontStyle: 'italic'}}>No payments</div>
+                                    ) : (
+                                        <div style={{display: 'flex', flexDirection: 'column', gap: '5px'}}>
+                                            {calDay.payments.map(payment => {
+                                                const isPaid = paidPayments[`${monthKey}-${payment.id}`];
+                                                const linkedDebt = payment.linkedDebt ? debts.find(d => d.id === parseInt(payment.linkedDebt)) : null;
+                                                
+                                                return (
+                                                    <div 
+                                                        key={payment.id}
+                                                        style={{
+                                                            background: isPaid ? '#28a74522' : '#dc354522',
+                                                            border: `1px solid ${isPaid ? '#28a745' : '#dc3545'}`,
+                                                            borderRadius: '5px',
+                                                            padding: '6px',
+                                                            fontSize: '0.75em',
+                                                            cursor: 'pointer',
+                                                            transition: 'all 0.2s'
+                                                        }}
+                                                        onClick={() => togglePaymentStatus(payment.id)}
+                                                        title={`Click to mark as ${isPaid ? 'unpaid' : 'paid'}`}
+                                                    >
+                                                        <div style={{display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '3px'}}>
+                                                            <span>{isPaid ? '✅' : '⭕'}</span>
+                                                            <span style={{color: '#e2e8f0', fontWeight: '600', fontSize: '0.95em'}}>
+                                                                {payment.name.length > 15 ? payment.name.substring(0, 15) + '...' : payment.name}
+                                                            </span>
+                                                        </div>
+                                                        <div style={{color: isPaid ? '#28a745' : '#dc3545', fontWeight: '700'}}>
+                                                            {formatCurrency(payment.amount)}
+                                                        </div>
+                                                        {linkedDebt && (
+                                                            <div style={{color: '#a0aec0', fontSize: '0.85em', marginTop: '2px'}}>
+                                                                💳 {linkedDebt.name.length > 12 ? linkedDebt.name.substring(0, 12) + '...' : linkedDebt.name}
+                                                            </div>
+                                                        )}
+                                                        {payment.auto && (
+                                                            <div style={{color: '#667eea', fontSize: '0.85em', marginTop: '2px'}}>
+                                                                🤖 Auto-pay
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                    
+                    <div style={{marginTop: '20px', padding: '15px', background: '#0f1419', borderRadius: '8px'}}>
+                        <h4 style={{color: '#667eea', marginBottom: '10px', fontSize: '0.95em'}}>Legend:</h4>
+                        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px', fontSize: '0.85em'}}>
+                            <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                <div style={{width: '20px', height: '20px', border: '2px solid #dc3545', borderRadius: '4px'}}></div>
+                                <span style={{color: '#a0aec0'}}>Unpaid</span>
+                            </div>
+                            <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                <div style={{width: '20px', height: '20px', border: '2px solid #28a745', borderRadius: '4px'}}></div>
+                                <span style={{color: '#a0aec0'}}>All Paid</span>
+                            </div>
+                            <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                <div style={{width: '20px', height: '20px', border: '2px solid #ffc107', borderRadius: '4px'}}></div>
+                                <span style={{color: '#a0aec0'}}>Partially Paid</span>
+                            </div>
+                            <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                <div style={{width: '20px', height: '20px', border: '2px solid #667eea', borderRadius: '4px', background: '#667eea22'}}></div>
+                                <span style={{color: '#a0aec0'}}>Today</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
         function RecurringTab({ recurringPayments, setRecurringPayments, debts, setDebts, transactions, setTransactions, paidPayments, setPaidPayments, currentMonth }) {
             const [formData, setFormData] = useState({ name: '', amount: '', category: '', dueDay: '1', linkedDebt: '', auto: false });
             const [editingPayment, setEditingPayment] = useState(null);
+            const [viewMode, setViewMode] = useState('list'); // 'list' or 'calendar'
             const monthKey = getMonthKey(currentMonth);
 
             // Check if auto-pay should be marked as paid (due date has passed in financial month)
@@ -1444,10 +1572,41 @@
                         </form>
                     </div>
                     <div className="section">
-                        <h2>Recurring Payments ({recurringPayments.length})</h2>
-                        <p style={{color: '#a0aec0', marginBottom: '15px', fontSize: '1.1em'}}>
-                            Total Monthly: <strong style={{color: '#667eea'}}>{formatCurrency(recurringPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0))}</strong>
-                        </p>
+                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
+                            <div>
+                                <h2>Recurring Payments ({recurringPayments.length})</h2>
+                                <p style={{color: '#a0aec0', fontSize: '1.1em'}}>
+                                    Total Monthly: <strong style={{color: '#667eea'}}>{formatCurrency(recurringPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0))}</strong>
+                                </p>
+                            </div>
+                            <div style={{display: 'flex', gap: '10px'}}>
+                                <button 
+                                    onClick={() => setViewMode('list')} 
+                                    className={viewMode === 'list' ? '' : 'secondary'}
+                                    style={{fontSize: '0.9em'}}
+                                >
+                                    📋 List View
+                                </button>
+                                <button 
+                                    onClick={() => setViewMode('calendar')} 
+                                    className={viewMode === 'calendar' ? '' : 'secondary'}
+                                    style={{fontSize: '0.9em'}}
+                                >
+                                    📅 Calendar View
+                                </button>
+                            </div>
+                        </div>
+                        
+                        {viewMode === 'calendar' ? (
+                            <PaymentCalendar 
+                                recurringPayments={recurringPayments}
+                                paidPayments={paidPayments}
+                                monthKey={monthKey}
+                                currentMonth={currentMonth}
+                                togglePaymentStatus={togglePaymentStatus}
+                                debts={debts}
+                            />
+                        ) : (
                         <div className="payment-list">
                             {recurringPayments.length === 0 ? (
                                 <p style={{color: '#a0aec0', textAlign: 'center', padding: '20px'}}>No recurring payments yet.</p>
@@ -1480,6 +1639,7 @@
                                 })
                             )}
                         </div>
+                        )}
                     </div>
                     {editingPayment && <EditRecurringPaymentModal payment={editingPayment} onUpdate={handleUpdate} onClose={() => setEditingPayment(null)} debts={debts} />}
                 </div>
