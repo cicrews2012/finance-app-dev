@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.11.14.1</title>
-    <!-- Build: 2025-12-27-01 - Fixed destructuring in PaymentCalendar -->
+    <title>Finance Tracker v1.11.14.2</title>
+    <!-- Build: 2025-12-27-02 - Fixed array mutation in list view -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -484,7 +484,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.11.14.1 | Recurring Payment Calendar View</div>
+                        <div className="version">v1.11.14.2 | Recurring Payment Calendar View</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -1613,7 +1613,7 @@
                             {recurringPayments.length === 0 ? (
                                 <p style={{color: '#a0aec0', textAlign: 'center', padding: '20px'}}>No recurring payments yet.</p>
                             ) : (
-                                recurringPayments.sort((a, b) => a.dueDay - b.dueDay).map((payment) => {
+                                [...recurringPayments].sort((a, b) => a.dueDay - b.dueDay).map((payment) => {
                                     const linkedDebt = payment.linkedDebt ? debts.find(d => d.id === parseInt(payment.linkedDebt)) : null;
                                     const isManuallyPaid = paidPayments[`${monthKey}-${payment.id}`];
                                     const isAutoPaid = payment.auto && shouldAutoPayBePaid(payment);
