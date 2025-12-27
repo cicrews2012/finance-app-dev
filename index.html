@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.11.14.2</title>
-    <!-- Build: 2025-12-27-02 - Fixed array mutation in list view -->
+    <title>Finance Tracker v1.11.14.3</title>
+    <!-- Build: 2025-12-27-03 - Fixed ALL destructuring to avoid React hooks error -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -152,7 +152,7 @@
                     
                     const monthKey = getMonthKey(currentMonth);
                     const todayDate = new Date();
-                    const { start } = getFinancialMonthRange(currentMonth);
+                    const __range = getFinancialMonthRange(currentMonth); const start = __range.start;
                     
                     let newTransactions = [...transactions];
                     let updatedDebts = [...debts];
@@ -289,7 +289,7 @@
             }, [currentMonth, recurringPayments.length]); // Run when month changes or payments added/removed
 
             const getMonthlyTotals = () => {
-                const { start, end } = getFinancialMonthRange(currentMonth);
+                const __range = getFinancialMonthRange(currentMonth); const start = __range.start; const end = __range.end;
                 
                 const monthlyTransactions = transactions.filter(t => { const tDate = parseLocalDate(t.date); return tDate >= start && tDate <= end; });
                 const income = monthlyTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + parseFloat(t.amount), 0);
@@ -304,7 +304,7 @@
             const getUnpaidRecurring = () => {
                 const monthKey = getMonthKey(currentMonth);
                 const today = new Date();
-                const { start } = getFinancialMonthRange(currentMonth);
+                const __range = getFinancialMonthRange(currentMonth); const start = __range.start;
                 
                 return recurringPayments.filter(p => {
                     const isManuallyPaid = paidPayments[`${monthKey}-${p.id}`];
@@ -406,7 +406,7 @@
                                 // Load existing paid payments from export
                                 const monthKey = getMonthKey(currentMonth);
                                 const today = new Date();
-                                const { start } = getFinancialMonthRange(currentMonth);
+                                const __range = getFinancialMonthRange(currentMonth); const start = __range.start;
                                 const newPaidPayments = {...(data.paidPayments || {})};
                                 
                                 // Additionally mark auto-pay items as paid if due date has passed
@@ -484,7 +484,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.11.14.2 | Recurring Payment Calendar View</div>
+                        <div className="version">v1.11.14.3 | Recurring Payment Calendar View</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -513,7 +513,7 @@
             const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
             const fileInputRef = React.useRef(null); // Move ref to top level
             const monthName = currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
-            const { start, end } = getFinancialMonthRange(currentMonth);
+            const __range = getFinancialMonthRange(currentMonth); const start = __range.start; const end = __range.end;
             
             // Get available years from transactions
             const availableYears = [...new Set(transactions.map(t => {
@@ -1453,7 +1453,7 @@
                 if (!payment.auto) return false;
                 const today = new Date();
                 const currentDay = today.getDate();
-                const { start } = getFinancialMonthRange(currentMonth);
+                const __range = getFinancialMonthRange(currentMonth); const start = __range.start;
                 
                 // Create a date for the payment due day in the financial month
                 let paymentDate;
@@ -2073,7 +2073,7 @@
 
         function BudgetTab({ transactions, recurringPayments, expectedMonthlyIncome, setExpectedMonthlyIncome, currentMonth, unpaidRecurring }) {
             const [tempIncome, setTempIncome] = useState(expectedMonthlyIncome);
-            const { start, end } = getFinancialMonthRange(currentMonth);
+            const __range = getFinancialMonthRange(currentMonth); const start = __range.start; const end = __range.end;
             
             // Get transactions for current month
             const monthTransactions = transactions.filter(t => {
