@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.11.14.4</title>
-    <!-- Build: 2025-12-27-04 - Fixed Date object rendering in calendar title -->
+    <title>Finance Tracker v1.11.15</title>
+    <!-- Build: 2025-12-28-02 - Added History Tab with Year + Month Selector -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -484,7 +484,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.11.14.4 | Recurring Payment Calendar View</div>
+                        <div className="version">v1.11.15 | History Tab Added</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -493,6 +493,7 @@
                         <button className={`tab-button ${activeTab === 'recurring' ? 'active' : ''}`} onClick={() => setActiveTab('recurring')}>🔄 Recurring</button>
                         <button className={`tab-button ${activeTab === 'debts' ? 'active' : ''}`} onClick={() => setActiveTab('debts')}>📉 Debt Tracking</button>
                         <button className={`tab-button ${activeTab === 'payoff' ? 'active' : ''}`} onClick={() => setActiveTab('payoff')}>🎯 Payoff Strategies</button>
+                        <button className={`tab-button ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>📈 History</button>
                         <button className={`tab-button ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>⚙️ Settings</button>
                     </div>
                     <div className="tab-content">
@@ -502,6 +503,7 @@
                         {activeTab === 'recurring' && <RecurringTab recurringPayments={recurringPayments} setRecurringPayments={setRecurringPayments} debts={debts} setDebts={setDebts} transactions={transactions} setTransactions={setTransactions} paidPayments={paidPayments} setPaidPayments={setPaidPayments} currentMonth={currentMonth} />}
                         {activeTab === 'debts' && <DebtsTab debts={debts} setDebts={setDebts} recurringPayments={recurringPayments} setRecurringPayments={setRecurringPayments} />}
                         {activeTab === 'payoff' && <PayoffStrategiesTab debts={debts} />}
+                        {activeTab === 'history' && <HistoryTab transactions={transactions} recurringPayments={recurringPayments} debts={debts} />}
                         {activeTab === 'settings' && <SettingsTab exportData={exportData} importData={importData} clearAllData={clearAllData} />}
                     </div>
                 </div>
@@ -1254,7 +1256,17 @@
                             monthlyGroups.map(([monthKey, data]) => (
                                 <div key={monthKey} className="collapsible-section">
                                     <div className="collapsible-header" onClick={() => toggleMonth(monthKey)}>
-                                        <div><h3>{data.label}</h3><p style={{fontSize: '0.9em', marginTop: '5px', opacity: 0.9}}>{data.transactions.length} transaction{data.transactions.length !== 1 ? 's' : ''} • Income: {formatCurrency(data.income)} • Expenses: {formatCurrency(data.expenses)}</p></div>
+                                        <div>
+                                            <h3>{data.label}</h3>
+                                            <p style={{fontSize: '0.9em', marginTop: '5px', opacity: 0.9}}>
+                                                {data.transactions.length} transaction{data.transactions.length !== 1 ? 's' : ''} • 
+                                                Income: {formatCurrency(data.income)} • 
+                                                Expenses: {formatCurrency(data.expenses)} • 
+                                                Net: <span style={{color: data.income - data.expenses >= 0 ? '#28a745' : '#dc3545', fontWeight: '600'}}>
+                                                    {formatCurrency(data.income - data.expenses)}
+                                                </span>
+                                            </p>
+                                        </div>
                                         <div style={{fontSize: '1.5em'}}>{expandedMonths[monthKey] ? '▼' : '▶'}</div>
                                     </div>
                                     {expandedMonths[monthKey] && (
@@ -2259,6 +2271,170 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            );
+        }
+
+        function HistoryTab({ transactions, recurringPayments, debts }) {
+            // Get available years from transactions
+            const availableYears = [...new Set(transactions.map(t => {
+                const date = parseLocalDate(t.date);
+                return date.getFullYear();
+            }))].sort((a, b) => b - a);
+            
+            // If no years, default to current year
+            if (availableYears.length === 0) {
+                availableYears.push(new Date().getFullYear());
+            }
+            
+            const [selectedYear, setSelectedYear] = useState(availableYears[0]);
+            const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth()); // 0-11
+            
+            // Generate month options for selected year
+            const getAvailableMonths = () => {
+                const months = [];
+                const currentYear = new Date().getFullYear();
+                const currentMonth = new Date().getMonth();
+                
+                for (let i = 0; i < 12; i++) {
+                    // Only show months that have passed or current month
+                    if (selectedYear < currentYear || (selectedYear === currentYear && i <= currentMonth)) {
+                        months.push({
+                            value: i,
+                            label: new Date(selectedYear, i, 1).toLocaleDateString('en-US', { month: 'long' })
+                        });
+                    }
+                }
+                return months;
+            };
+            
+            const availableMonths = getAvailableMonths();
+            
+            // Filter transactions for selected year/month
+            const getMonthTransactions = () => {
+                return transactions.filter(t => {
+                    const date = parseLocalDate(t.date);
+                    return date.getFullYear() === selectedYear && date.getMonth() === selectedMonth;
+                });
+            };
+            
+            const monthTransactions = getMonthTransactions();
+            
+            // Calculate totals for selected month
+            const monthIncome = monthTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + parseFloat(t.amount), 0);
+            const monthExpenses = monthTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + parseFloat(t.amount), 0);
+            const monthNet = monthIncome - monthExpenses;
+            
+            // Get top 5 transactions
+            const topTransactions = [...monthTransactions]
+                .sort((a, b) => parseFloat(b.amount) - parseFloat(a.amount))
+                .slice(0, 5);
+            
+            // Calculate category breakdown
+            const categoryTotals = {};
+            monthTransactions.filter(t => t.type === 'expense').forEach(t => {
+                const cat = t.category || 'Uncategorized';
+                categoryTotals[cat] = (categoryTotals[cat] || 0) + parseFloat(t.amount);
+            });
+            const sortedCategories = Object.entries(categoryTotals)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 8);
+            
+            return (
+                <div>
+                    <div className="section">
+                        <h2>📈 Historical Analysis</h2>
+                        <div style={{display: 'flex', gap: '20px', marginTop: '20px', flexWrap: 'wrap'}}>
+                            <div className="form-group">
+                                <label>Year</label>
+                                <select value={selectedYear} onChange={(e) => setSelectedYear(parseInt(e.target.value))}>
+                                    {availableYears.map(year => (
+                                        <option key={year} value={year}>{year}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label>Month</label>
+                                <select value={selectedMonth} onChange={(e) => setSelectedMonth(parseInt(e.target.value))}>
+                                    {availableMonths.map(month => (
+                                        <option key={month.value} value={month.value}>{month.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div className="section">
+                        <h2>{availableMonths.find(m => m.value === selectedMonth)?.label} {selectedYear} Summary</h2>
+                        <div className="stats-grid">
+                            <div className="stat-card">
+                                <div className="stat-label">Total Income</div>
+                                <div className="stat-value positive">{formatCurrency(monthIncome)}</div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-label">Total Expenses</div>
+                                <div className="stat-value negative">{formatCurrency(monthExpenses)}</div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-label">Net</div>
+                                <div className={`stat-value ${monthNet >= 0 ? 'positive' : 'negative'}`}>{formatCurrency(monthNet)}</div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-label">Transactions</div>
+                                <div className="stat-value">{monthTransactions.length}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {topTransactions.length > 0 && (
+                        <div className="section">
+                            <h2>Top 5 Transactions</h2>
+                            <div className="transaction-list">
+                                {topTransactions.map(t => (
+                                    <div key={t.id} className="transaction-item">
+                                        <div className="item-details">
+                                            <h4>{t.description}</h4>
+                                            <p>{t.category} • {formatDate(t.date)}</p>
+                                        </div>
+                                        <div className={`item-amount ${t.type === 'income' ? 'positive' : 'negative'}`}>
+                                            {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    
+                    {sortedCategories.length > 0 && (
+                        <div className="section">
+                            <h2>Spending by Category</h2>
+                            <div className="category-breakdown">
+                                {sortedCategories.map(([cat, amount]) => {
+                                    const percentage = monthExpenses > 0 ? (amount / monthExpenses * 100) : 0;
+                                    return (
+                                        <div key={cat} className="category-item">
+                                            <div className="category-info">
+                                                <span className="category-name">{cat}</span>
+                                                <span className="category-amount">{formatCurrency(amount)}</span>
+                                            </div>
+                                            <div className="category-bar">
+                                                <div className="category-bar-fill" style={{width: `${percentage}%`}}></div>
+                                            </div>
+                                            <div className="category-percentage">{percentage.toFixed(1)}%</div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                    
+                    {monthTransactions.length === 0 && (
+                        <div className="section">
+                            <p style={{color: '#a0aec0', textAlign: 'center', padding: '40px', fontSize: '1.1em'}}>
+                                No transactions found for {availableMonths.find(m => m.value === selectedMonth)?.label} {selectedYear}
+                            </p>
+                        </div>
+                    )}
                 </div>
             );
         }
