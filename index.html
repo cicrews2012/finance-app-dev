@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.11.16</title>
-    <!-- Build: 2025-12-28-04 - Improved History Tab UI -->
+    <title>Finance Tracker v1.11.16.2</title>
+    <!-- Build: 2025-12-28-06 - Fixed Net color visibility + Financial month filtering -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -485,7 +485,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.11.16 | History Tab UI Improved</div>
+                        <div className="version">v1.11.16.2 | Visibility + Date Fixes</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -1263,7 +1263,7 @@
                                                 {data.transactions.length} transaction{data.transactions.length !== 1 ? 's' : ''} • 
                                                 Income: {formatCurrency(data.income)} • 
                                                 Expenses: {formatCurrency(data.expenses)} • 
-                                                Net: <span style={{color: data.income - data.expenses >= 0 ? '#28a745' : '#dc3545', fontWeight: '600'}}>
+                                                Net: <span style={{color: '#e2e8f0', fontWeight: '600'}}>
                                                     {formatCurrency(data.income - data.expenses)}
                                                 </span>
                                             </p>
@@ -2311,11 +2311,17 @@
             
             const availableMonths = getAvailableMonths();
             
-            // Filter transactions for selected year/month
+            // Filter transactions for selected FINANCIAL month (28th-27th)
             const getMonthTransactions = () => {
+                // Create a date for the 1st of the selected month
+                const selectedDate = new Date(selectedYear, selectedMonth, 1);
+                const monthRange = getFinancialMonthRange(selectedDate);
+                const start = monthRange.start;
+                const end = monthRange.end;
+                
                 return transactions.filter(t => {
                     const date = parseLocalDate(t.date);
-                    return date.getFullYear() === selectedYear && date.getMonth() === selectedMonth;
+                    return date >= start && date <= end;
                 });
             };
             
@@ -2326,8 +2332,9 @@
             const monthExpenses = monthTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + parseFloat(t.amount), 0);
             const monthNet = monthIncome - monthExpenses;
             
-            // Get top 5 transactions
+            // Get top 5 EXPENSES only
             const topTransactions = [...monthTransactions]
+                .filter(t => t.type === 'expense')
                 .sort((a, b) => parseFloat(b.amount) - parseFloat(a.amount))
                 .slice(0, 5);
             
@@ -2358,7 +2365,7 @@
                                     <select 
                                         value={selectedYear} 
                                         onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                                        style={{padding: '10px 15px', fontSize: '1em', borderRadius: '8px', border: '2px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.95)', minWidth: '120px'}}
+                                        style={{padding: '10px 15px', fontSize: '1.1em', fontWeight: '600', borderRadius: '8px', border: '2px solid #fff', background: '#fff', color: '#1a1f2e', minWidth: '120px', cursor: 'pointer'}}
                                     >
                                         {availableYears.map(year => (
                                             <option key={year} value={year}>{year}</option>
@@ -2370,7 +2377,7 @@
                                     <select 
                                         value={selectedMonth} 
                                         onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                                        style={{padding: '10px 15px', fontSize: '1em', borderRadius: '8px', border: '2px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.95)', minWidth: '150px'}}
+                                        style={{padding: '10px 15px', fontSize: '1.1em', fontWeight: '600', borderRadius: '8px', border: '2px solid #fff', background: '#fff', color: '#1a1f2e', minWidth: '150px', cursor: 'pointer'}}
                                     >
                                         {availableMonths.map(month => (
                                             <option key={month.value} value={month.value}>{month.label}</option>
@@ -2419,7 +2426,7 @@
                     {/* Top Transactions */}
                     {topTransactions.length > 0 && (
                         <div className="section" style={{background: '#1a1f2e', border: '2px solid #667eea'}}>
-                            <h2 style={{marginBottom: '20px', color: '#667eea'}}>🏆 Top 5 Transactions</h2>
+                            <h2 style={{marginBottom: '20px', color: '#667eea'}}>🏆 Top 5 Expenses</h2>
                             <div style={{display: 'flex', flexDirection: 'column', gap: '12px'}}>
                                 {topTransactions.map((t, index) => (
                                     <div key={t.id} style={{
