@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.11.17</title>
-    <!-- Build: 2025-12-28-07 - Added Full Year Review option -->
+    <title>Finance Tracker v1.11.17.1</title>
+    <!-- Build: 2025-12-30-01 - Fixed year totals to use financial months -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -485,7 +485,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.11.17 | Full Year Review Added</div>
+                        <div className="version">v1.11.17.1 | Fixed Year Totals</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -553,7 +553,19 @@
             const moneyAvailable = moneyLeft - spentSoFar - unpaidRecurring;
             
             const getYearlyTotals = () => {
-                const yearlyTransactions = transactions.filter(t => { const tDate = parseLocalDate(t.date); return tDate.getFullYear() === selectedYear; });
+                // Get all transactions that fall within ANY financial month of the selected year
+                const yearlyTransactions = transactions.filter(t => {
+                    const tDate = parseLocalDate(t.date);
+                    // Check each financial month of the selected year
+                    for (let month = 0; month < 12; month++) {
+                        const testDate = new Date(selectedYear, month, 1);
+                        const monthRange = getFinancialMonthRange(testDate);
+                        if (tDate >= monthRange.start && tDate <= monthRange.end) {
+                            return true;
+                        }
+                    }
+                    return false;
+                });
                 const income = yearlyTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + parseFloat(t.amount), 0);
                 const expenses = yearlyTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + parseFloat(t.amount), 0);
                 return { income, expenses, net: income - expenses, year: selectedYear };
