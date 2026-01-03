@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.11.21.3</title>
-    <!-- Build: 2026-01-03-02 - Added debt ID logging to debug linking issue -->
+    <title>Finance Tracker v1.11.21.4</title>
+    <!-- Build: 2026-01-03-03 - Fixed auto-pay timing - wait for debts to load -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -145,6 +145,13 @@
                 // Run immediately when data loads or month changes
                 const timer = setTimeout(() => {
                     if (recurringPayments.length === 0) return;
+                    
+                    // Skip if debts haven't loaded yet (only if there are payments linked to debts)
+                    const hasLinkedPayments = recurringPayments.some(p => p.linkedDebt);
+                    if (hasLinkedPayments && debts.length === 0) {
+                        console.log('⏳ Waiting for debts to load...');
+                        return;
+                    }
                     
                     console.log('🚀 AUTO-PAY SYSTEM RUNNING');
                     console.log('Current month:', currentMonth);
@@ -311,7 +318,7 @@
                 }, 500); // Wait 500ms for data to load
                 
                 return () => clearTimeout(timer);
-            }, [currentMonth, recurringPayments.length]); // Run when month changes or payments added/removed
+            }, [currentMonth, recurringPayments.length, debts.length]); // Run when month changes, payments added/removed, or debts loaded
 
             const getMonthlyTotals = () => {
                 const __range = getFinancialMonthRange(currentMonth); const start = __range.start; const end = __range.end;
@@ -509,7 +516,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.11.21.3 | Debt ID Debug</div>
+                        <div className="version">v1.11.21.4 | Auto-Pay Timing Fixed</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
