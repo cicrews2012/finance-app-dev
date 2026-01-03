@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.11.21.2</title>
-    <!-- Build: 2026-01-03-01 - Fixed auto-pay debt balance updates -->
+    <title>Finance Tracker v1.11.21.3</title>
+    <!-- Build: 2026-01-03-02 - Added debt ID logging to debug linking issue -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -150,6 +150,8 @@
                     console.log('Current month:', currentMonth);
                     console.log('Transactions before:', transactions.length);
                     console.log('Recurring payments:', recurringPayments.length);
+                    console.log('Debts:', debts.length);
+                    console.log('Debt IDs:', debts.map(d => ({ id: d.id, name: d.name, type: typeof d.id })));
                     
                     const monthKey = getMonthKey(currentMonth);
                     const todayDate = new Date();
@@ -225,8 +227,14 @@
                                 
                                 // Update linked debt if exists and transaction was created
                                 if (payment.linkedDebt) {
-                                    console.log('  Payment has linkedDebt:', payment.linkedDebt);
-                                    const linkedDebtIndex = updatedDebts.findIndex(d => d.id === parseInt(payment.linkedDebt));
+                                    console.log('  Payment has linkedDebt:', payment.linkedDebt, 'type:', typeof payment.linkedDebt);
+                                    const linkedDebtId = parseInt(payment.linkedDebt);
+                                    console.log('  After parseInt:', linkedDebtId, 'type:', typeof linkedDebtId);
+                                    console.log('  Searching in debts:', updatedDebts.map(d => d.id));
+                                    const linkedDebtIndex = updatedDebts.findIndex(d => {
+                                        console.log('    Comparing debt.id:', d.id, 'type:', typeof d.id, 'with linkedDebtId:', linkedDebtId, 'match:', d.id === linkedDebtId);
+                                        return d.id === linkedDebtId;
+                                    });
                                     console.log('  Found debt at index:', linkedDebtIndex);
                                     
                                     if (linkedDebtIndex !== -1) {
@@ -501,7 +509,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.11.21.2 | Auto-Pay Debt Fix</div>
+                        <div className="version">v1.11.21.3 | Debt ID Debug</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
