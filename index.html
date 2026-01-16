@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.11.24</title>
-    <!-- Build: 2026-01-06-03 - Mobile responsive design for iPad and iPhone -->
+    <title>Finance Tracker v1.11.25</title>
+    <!-- Build: 2026-01-13-01 - Added comprehensive CSV export -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -689,6 +689,237 @@
                 a.click();
             };
 
+            const exportToCSV = () => {
+                // Create comprehensive CSV with all transaction data
+                const csvRows = [];
+                
+                // Header
+                csvRows.push([
+                    'Date',
+                    'Type',
+                    'Vendor',
+                    'Category',
+                    'Amount',
+                    'Notes',
+                    'Linked Debt',
+                    'Is Recurring',
+                    'Financial Month',
+                    'Financial Year'
+                ].join(','));
+                
+                // Sort transactions by date (newest first)
+                const sortedTransactions = [...transactions].sort((a, b) => 
+                    new Date(b.date) - new Date(a.date)
+                );
+                
+                // Add transaction rows
+                sortedTransactions.forEach(t => {
+                    const date = parseLocalDate(t.date);
+                    const debtName = t.linkedDebt ? 
+                        (debts.find(d => d.id === parseInt(t.linkedDebt))?.name || '') : 
+                        '';
+                    
+                    // Calculate financial month/year for this transaction
+                    const day = date.getDate();
+                    let financialMonth, financialYear;
+                    if (day >= 28) {
+                        financialMonth = date.getMonth() + 1;
+                        financialYear = date.getFullYear();
+                        if (financialMonth > 11) {
+                            financialMonth = 0;
+                            financialYear++;
+                        }
+                    } else {
+                        financialMonth = date.getMonth();
+                        financialYear = date.getFullYear();
+                    }
+                    const financialMonthName = new Date(financialYear, financialMonth, 1)
+                        .toLocaleDateString('en-US', { month: 'long' });
+                    
+                    csvRows.push([
+                        t.date,
+                        t.type,
+                        `"${(t.description || '').replace(/"/g, '""')}"`, // Escape quotes
+                        t.category || '',
+                        t.amount.toFixed(2),
+                        `"${(t.notes || '').replace(/"/g, '""')}"`, // Escape quotes
+                        `"${debtName.replace(/"/g, '""')}"`, // Escape quotes
+                        t.isRecurring ? 'Yes' : 'No',
+                        financialMonthName,
+                        financialYear
+                    ].join(','));
+                });
+                
+                // Create and download CSV
+                const csvContent = csvRows.join('\n');
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `finance-tracker-transactions-${getLocalDateString()}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+            };
+
+            const exportAllDataToCSV = () => {
+                // Create a comprehensive CSV with transactions, debts, and recurring payments
+                const csvRows = [];
+                
+                // === TRANSACTIONS SECTION ===
+                csvRows.push(['=== TRANSACTIONS ===']);
+                csvRows.push([
+                    'Date',
+                    'Type',
+                    'Vendor',
+                    'Category',
+                    'Amount',
+                    'Notes',
+                    'Linked Debt',
+                    'Is Recurring',
+                    'Financial Month',
+                    'Financial Year'
+                ].join(','));
+                
+                const sortedTransactions = [...transactions].sort((a, b) => 
+                    new Date(b.date) - new Date(a.date)
+                );
+                
+                sortedTransactions.forEach(t => {
+                    const date = parseLocalDate(t.date);
+                    const debtName = t.linkedDebt ? 
+                        (debts.find(d => d.id === parseInt(t.linkedDebt))?.name || '') : 
+                        '';
+                    
+                    const day = date.getDate();
+                    let financialMonth, financialYear;
+                    if (day >= 28) {
+                        financialMonth = date.getMonth() + 1;
+                        financialYear = date.getFullYear();
+                        if (financialMonth > 11) {
+                            financialMonth = 0;
+                            financialYear++;
+                        }
+                    } else {
+                        financialMonth = date.getMonth();
+                        financialYear = date.getFullYear();
+                    }
+                    const financialMonthName = new Date(financialYear, financialMonth, 1)
+                        .toLocaleDateString('en-US', { month: 'long' });
+                    
+                    csvRows.push([
+                        t.date,
+                        t.type,
+                        `"${(t.description || '').replace(/"/g, '""')}"`,
+                        t.category || '',
+                        t.amount.toFixed(2),
+                        `"${(t.notes || '').replace(/"/g, '""')}"`,
+                        `"${debtName.replace(/"/g, '""')}"`,
+                        t.isRecurring ? 'Yes' : 'No',
+                        financialMonthName,
+                        financialYear
+                    ].join(','));
+                });
+                
+                // === DEBTS SECTION ===
+                csvRows.push(['']); // Empty line
+                csvRows.push(['=== DEBTS ===']);
+                csvRows.push([
+                    'Name',
+                    'Category',
+                    'Original Balance',
+                    'Current Balance',
+                    'Interest Rate (%)',
+                    'Minimum Payment',
+                    'Due Day',
+                    'Progress (%)'
+                ].join(','));
+                
+                debts.forEach(d => {
+                    const progressPercent = d.originalBalance > 0 ? 
+                        ((d.originalBalance - d.currentBalance) / d.originalBalance * 100).toFixed(2) : 
+                        0;
+                    
+                    csvRows.push([
+                        `"${d.name.replace(/"/g, '""')}"`,
+                        d.category || '',
+                        d.originalBalance.toFixed(2),
+                        d.currentBalance.toFixed(2),
+                        d.interestRate || 0,
+                        d.minimumPayment.toFixed(2),
+                        d.dueDay || '',
+                        progressPercent
+                    ].join(','));
+                });
+                
+                // === RECURRING PAYMENTS SECTION ===
+                csvRows.push(['']); // Empty line
+                csvRows.push(['=== RECURRING PAYMENTS ===']);
+                csvRows.push([
+                    'Name',
+                    'Amount',
+                    'Category',
+                    'Due Day',
+                    'Auto-Pay',
+                    'Linked Debt',
+                    'Payment URL'
+                ].join(','));
+                
+                recurringPayments.forEach(p => {
+                    const linkedDebtName = p.linkedDebt ? 
+                        (debts.find(d => d.id === parseInt(p.linkedDebt))?.name || '') : 
+                        '';
+                    
+                    csvRows.push([
+                        `"${p.name.replace(/"/g, '""')}"`,
+                        p.amount.toFixed(2),
+                        p.category || '',
+                        p.dueDay,
+                        p.auto ? 'Yes' : 'No',
+                        `"${linkedDebtName.replace(/"/g, '""')}"`,
+                        `"${(p.paymentUrl || '').replace(/"/g, '""')}"`
+                    ].join(','));
+                });
+                
+                // === SUMMARY SECTION ===
+                csvRows.push(['']); // Empty line
+                csvRows.push(['=== SUMMARY ===']);
+                
+                const totalIncome = transactions
+                    .filter(t => t.type === 'income')
+                    .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+                
+                const totalExpenses = transactions
+                    .filter(t => t.type === 'expense')
+                    .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+                
+                const totalDebt = debts.reduce((sum, d) => sum + parseFloat(d.currentBalance), 0);
+                
+                const totalMonthlyDebtPayments = debts.reduce((sum, d) => 
+                    sum + parseFloat(d.minimumPayment || 0), 0);
+                
+                const totalMonthlyRecurring = recurringPayments.reduce((sum, p) => 
+                    sum + parseFloat(p.amount), 0);
+                
+                csvRows.push(['Total Income', totalIncome.toFixed(2)]);
+                csvRows.push(['Total Expenses', totalExpenses.toFixed(2)]);
+                csvRows.push(['Net', (totalIncome - totalExpenses).toFixed(2)]);
+                csvRows.push(['Total Debt Balance', totalDebt.toFixed(2)]);
+                csvRows.push(['Monthly Debt Payments', totalMonthlyDebtPayments.toFixed(2)]);
+                csvRows.push(['Monthly Recurring Payments', totalMonthlyRecurring.toFixed(2)]);
+                csvRows.push(['Transaction Count', transactions.length]);
+                csvRows.push(['Export Date', new Date().toISOString()]);
+                
+                // Create and download CSV
+                const csvContent = csvRows.join('\n');
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `finance-tracker-full-export-${getLocalDateString()}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+            };
+
             const importData = (event) => {
                 const file = event.target.files[0];
                 if (file) {
@@ -804,7 +1035,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.11.24 | Mobile Responsive Design</div>
+                        <div className="version">v1.11.25 | CSV Export Added</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -3374,12 +3605,36 @@
                     </div>
                     <div className="section">
                         <h2>Data Management</h2>
-                        <div className="controls">
-                            <button onClick={exportData}>💾 Export Data</button>
-                            <label style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', padding: '12px 30px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, display: 'inline-block'}}>📁 Import Data<input type="file" accept=".json" onChange={importData} style={{display: 'none'}} /></label>
-                            <button className="danger" onClick={clearAllData}>🗑️ Clear All Data</button>
+                        <div style={{marginBottom: '30px'}}>
+                            <h3 style={{color: '#667eea', marginBottom: '15px'}}>JSON Export/Import (Full Backup)</h3>
+                            <div className="controls">
+                                <button onClick={exportData}>💾 Export JSON</button>
+                                <label style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', padding: '12px 30px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, display: 'inline-block'}}>📁 Import JSON<input type="file" accept=".json" onChange={importData} style={{display: 'none'}} /></label>
+                            </div>
+                            <p style={{marginTop: '10px', color: '#a0aec0', fontSize: '0.9em'}}>
+                                JSON format preserves all data and can be re-imported. Use for backups and moving between devices.
+                            </p>
                         </div>
-                        <p style={{marginTop: '20px', color: '#a0aec0', fontSize: '0.9em'}}>Export your data to save a backup, import previously exported data, or clear all data to start fresh.</p>
+                        
+                        <div style={{marginBottom: '30px'}}>
+                            <h3 style={{color: '#28a745', marginBottom: '15px'}}>CSV Export (For Analysis)</h3>
+                            <div className="controls">
+                                <button onClick={exportToCSV} style={{background: '#28a745'}}>📊 Export Transactions CSV</button>
+                                <button onClick={exportAllDataToCSV} style={{background: '#20c997'}}>📋 Export Full Data CSV</button>
+                            </div>
+                            <p style={{marginTop: '10px', color: '#a0aec0', fontSize: '0.9em'}}>
+                                <strong>Transactions CSV:</strong> Just your transaction history for analysis<br/>
+                                <strong>Full Data CSV:</strong> Transactions + Debts + Recurring Payments + Summary (best for Claude analysis)
+                            </p>
+                        </div>
+                        
+                        <div>
+                            <h3 style={{color: '#dc3545', marginBottom: '15px'}}>Danger Zone</h3>
+                            <button className="danger" onClick={clearAllData}>🗑️ Clear All Data</button>
+                            <p style={{marginTop: '10px', color: '#a0aec0', fontSize: '0.9em'}}>
+                                Clears all data from memory. Export first if you want to keep anything!
+                            </p>
+                        </div>
                     </div>
                     <div className="section">
                         <h2>How to Use Finance Tracker</h2>
