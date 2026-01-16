@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.11.25</title>
-    <!-- Build: 2026-01-13-01 - Added comprehensive CSV export -->
+    <title>Finance Tracker v1.11.25.1</title>
+    <!-- Build: 2026-01-13-02 - Fixed CSV export function passing -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -1035,7 +1035,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.11.25 | CSV Export Added</div>
+                        <div className="version">v1.11.25.1 | CSV Export Fixed</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -1057,7 +1057,7 @@
                         {activeTab === 'debts' && <DebtsTab debts={debts} setDebts={setDebts} recurringPayments={recurringPayments} setRecurringPayments={setRecurringPayments} />}
                         {activeTab === 'payoff' && <PayoffStrategiesTab debts={debts} />}
                         {activeTab === 'history' && <HistoryTab transactions={transactions} recurringPayments={recurringPayments} debts={debts} />}
-                        {activeTab === 'settings' && <SettingsTab exportData={exportData} importData={importData} clearAllData={clearAllData} />}
+                        {activeTab === 'settings' && <SettingsTab exportData={exportData} importData={importData} clearAllData={clearAllData} exportToCSV={exportToCSV} exportAllDataToCSV={exportAllDataToCSV} />}
                     </div>
                 </div>
             );
@@ -3582,7 +3582,7 @@
             );
         }
 
-        function SettingsTab({ exportData, importData, clearAllData }) {
+        function SettingsTab({ exportData, importData, clearAllData, exportToCSV, exportAllDataToCSV }) {
             return (
                 <div>
                     <div className="section" style={{background: 'linear-gradient(135deg, #667eea22 0%, #764ba222 100%)', border: '2px solid #667eea', padding: '25px'}}>
