@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.11.26</title>
-    <!-- Build: 2026-01-15-01 - Added paid off debts feature + CSV formula fix -->
+    <title>Finance Tracker v1.11.26.1</title>
+    <!-- Build: 2026-01-15-02 - Fixed CSV headers + moved paid off section -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -766,7 +766,7 @@
                 const csvRows = [];
                 
                 // === TRANSACTIONS SECTION ===
-                csvRows.push(['"=== TRANSACTIONS ==="']); // Quote to prevent Excel formula error
+                csvRows.push(['TRANSACTIONS']); // Simple text header
                 csvRows.push([
                     'Date',
                     'Type',
@@ -822,7 +822,7 @@
                 
                 // === ACTIVE DEBTS SECTION ===
                 csvRows.push(['']); // Empty line
-                csvRows.push(['"=== ACTIVE DEBTS ==="']); // Quote to prevent Excel formula error
+                csvRows.push(['ACTIVE DEBTS']); // Simple text header
                 csvRows.push([
                     'Name',
                     'Category',
@@ -857,7 +857,7 @@
                 // === PAID OFF DEBTS SECTION ===
                 if (paidOffDebts.length > 0) {
                     csvRows.push(['']); // Empty line
-                    csvRows.push(['"=== PAID OFF DEBTS ==="']); // Quote to prevent Excel formula error
+                    csvRows.push(['PAID OFF DEBTS']); // Simple text header
                     csvRows.push([
                         'Name',
                         'Category',
@@ -879,7 +879,7 @@
                 
                 // === RECURRING PAYMENTS SECTION ===
                 csvRows.push(['']); // Empty line
-                csvRows.push(['"=== RECURRING PAYMENTS ==="']); // Quote to prevent Excel formula error
+                csvRows.push(['RECURRING PAYMENTS']); // Simple text header
                 csvRows.push([
                     'Name',
                     'Amount',
@@ -908,7 +908,7 @@
                 
                 // === SUMMARY SECTION ===
                 csvRows.push(['']); // Empty line
-                csvRows.push(['"=== SUMMARY ==="']); // Quote to prevent Excel formula error
+                csvRows.push(['SUMMARY']); // Simple text header
                 
                 const totalIncome = transactions
                     .filter(t => t.type === 'income')
@@ -1070,7 +1070,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.11.26 | Paid Off Debts Victory!</div>
+                        <div className="version">v1.11.26.1 | CSV + Layout Fixed</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -2739,6 +2739,69 @@
                             </div>
                         </div>
                     )}
+                    {paidOffDebts.length > 0 && (
+                        <div className="section" style={{background: 'linear-gradient(135deg, #28a74522 0%, #20c99722 100%)', border: '2px solid #28a745'}}>
+                            <div 
+                                className="collapsible-header" 
+                                onClick={() => setExpandedPaidOffSection(!expandedPaidOffSection)}
+                                style={{cursor: 'pointer', padding: '20px', borderRadius: '10px', background: '#1a1f2e'}}
+                            >
+                                <div>
+                                    <h2 style={{color: '#28a745', margin: 0}}>✅ Paid Off Debts ({paidOffDebts.length})</h2>
+                                    <div style={{display: 'flex', gap: '30px', marginTop: '10px', fontSize: '1em', flexWrap: 'wrap'}}>
+                                        <p style={{color: '#a0aec0', margin: 0}}>
+                                            Total Debt Eliminated: <strong style={{color: '#28a745'}}>{formatCurrency(totalDebtEliminated)}</strong>
+                                        </p>
+                                        <p style={{color: '#a0aec0', margin: 0}}>
+                                            Money Freed Up: <strong style={{color: '#ffc107'}}>{formatCurrency(moneyFreedUp)}/month</strong>
+                                        </p>
+                                    </div>
+                                </div>
+                                <div style={{fontSize: '1.5em'}}>{expandedPaidOffSection ? '▼' : '▶'}</div>
+                            </div>
+                            {expandedPaidOffSection && (
+                                <div style={{marginTop: '20px'}}>
+                                    <div className="debt-list">
+                                        {paidOffDebts.map((debt) => (
+                                            <div key={debt.id} className="collapsible-section" style={{borderColor: '#28a745'}}>
+                                                <div style={{padding: '20px', background: '#1a1f2e', borderRadius: '10px'}}>
+                                                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '15px'}}>
+                                                        <div>
+                                                            <h3 style={{color: '#28a745', margin: 0, marginBottom: '5px'}}>✅ {debt.name}</h3>
+                                                            <p style={{fontSize: '0.9em', color: '#a0aec0', margin: 0}}>{debt.category}</p>
+                                                        </div>
+                                                        <div style={{textAlign: 'right'}}>
+                                                            <div style={{fontSize: '1.2em', color: '#28a745', fontWeight: 'bold'}}>PAID OFF</div>
+                                                            <div style={{fontSize: '0.85em', color: '#a0aec0', marginTop: '3px'}}>
+                                                                {debt.paidOffDate ? new Date(debt.paidOffDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Recently'}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px', marginTop: '15px'}}>
+                                                        <div>
+                                                            <div style={{color: '#a0aec0', fontSize: '0.85em', marginBottom: '5px'}}>Original Balance</div>
+                                                            <div style={{color: '#e2e8f0', fontWeight: '600'}}>{formatCurrency(debt.originalBalance)}</div>
+                                                        </div>
+                                                        <div>
+                                                            <div style={{color: '#a0aec0', fontSize: '0.85em', marginBottom: '5px'}}>Monthly Payment Freed</div>
+                                                            <div style={{color: '#ffc107', fontWeight: '600'}}>{formatCurrency(debt.minimumPayment)}</div>
+                                                        </div>
+                                                    </div>
+                                                    <div style={{marginTop: '15px'}}>
+                                                        <div className="progress-bar"><div className="progress-fill" style={{width: '100%', background: '#28a745'}}></div></div>
+                                                        <div style={{textAlign: 'center', marginTop: '8px', color: '#28a745', fontSize: '0.9em', fontWeight: '600'}}>100% Complete! 🎉</div>
+                                                    </div>
+                                                    <div style={{marginTop: '15px', display: 'flex', gap: '10px'}}>
+                                                        <button className="danger" onClick={() => deleteDebt(debt.id)} style={{fontSize: '0.9em'}}>Delete from History</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
                     <div className="section">
                         <h2>Add New Debt</h2>
                         <form onSubmit={handleSubmit}>
@@ -2899,69 +2962,6 @@
                             )}
                         </div>
                     </div>
-                    {paidOffDebts.length > 0 && (
-                        <div className="section" style={{background: 'linear-gradient(135deg, #28a74522 0%, #20c99722 100%)', border: '2px solid #28a745'}}>
-                            <div 
-                                className="collapsible-header" 
-                                onClick={() => setExpandedPaidOffSection(!expandedPaidOffSection)}
-                                style={{cursor: 'pointer', padding: '20px', borderRadius: '10px', background: '#1a1f2e'}}
-                            >
-                                <div>
-                                    <h2 style={{color: '#28a745', margin: 0}}>✅ Paid Off Debts ({paidOffDebts.length})</h2>
-                                    <div style={{display: 'flex', gap: '30px', marginTop: '10px', fontSize: '1em', flexWrap: 'wrap'}}>
-                                        <p style={{color: '#a0aec0', margin: 0}}>
-                                            Total Debt Eliminated: <strong style={{color: '#28a745'}}>{formatCurrency(totalDebtEliminated)}</strong>
-                                        </p>
-                                        <p style={{color: '#a0aec0', margin: 0}}>
-                                            Money Freed Up: <strong style={{color: '#ffc107'}}>{formatCurrency(moneyFreedUp)}/month</strong>
-                                        </p>
-                                    </div>
-                                </div>
-                                <div style={{fontSize: '1.5em'}}>{expandedPaidOffSection ? '▼' : '▶'}</div>
-                            </div>
-                            {expandedPaidOffSection && (
-                                <div style={{marginTop: '20px'}}>
-                                    <div className="debt-list">
-                                        {paidOffDebts.map((debt) => (
-                                            <div key={debt.id} className="collapsible-section" style={{borderColor: '#28a745'}}>
-                                                <div style={{padding: '20px', background: '#1a1f2e', borderRadius: '10px'}}>
-                                                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '15px'}}>
-                                                        <div>
-                                                            <h3 style={{color: '#28a745', margin: 0, marginBottom: '5px'}}>✅ {debt.name}</h3>
-                                                            <p style={{fontSize: '0.9em', color: '#a0aec0', margin: 0}}>{debt.category}</p>
-                                                        </div>
-                                                        <div style={{textAlign: 'right'}}>
-                                                            <div style={{fontSize: '1.2em', color: '#28a745', fontWeight: 'bold'}}>PAID OFF</div>
-                                                            <div style={{fontSize: '0.85em', color: '#a0aec0', marginTop: '3px'}}>
-                                                                {debt.paidOffDate ? new Date(debt.paidOffDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Recently'}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px', marginTop: '15px'}}>
-                                                        <div>
-                                                            <div style={{color: '#a0aec0', fontSize: '0.85em', marginBottom: '5px'}}>Original Balance</div>
-                                                            <div style={{color: '#e2e8f0', fontWeight: '600'}}>{formatCurrency(debt.originalBalance)}</div>
-                                                        </div>
-                                                        <div>
-                                                            <div style={{color: '#a0aec0', fontSize: '0.85em', marginBottom: '5px'}}>Monthly Payment Freed</div>
-                                                            <div style={{color: '#ffc107', fontWeight: '600'}}>{formatCurrency(debt.minimumPayment)}</div>
-                                                        </div>
-                                                    </div>
-                                                    <div style={{marginTop: '15px'}}>
-                                                        <div className="progress-bar"><div className="progress-fill" style={{width: '100%', background: '#28a745'}}></div></div>
-                                                        <div style={{textAlign: 'center', marginTop: '8px', color: '#28a745', fontSize: '0.9em', fontWeight: '600'}}>100% Complete! 🎉</div>
-                                                    </div>
-                                                    <div style={{marginTop: '15px', display: 'flex', gap: '10px'}}>
-                                                        <button className="danger" onClick={() => deleteDebt(debt.id)} style={{fontSize: '0.9em'}}>Delete from History</button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
                     {editingDebt && <EditDebtModal debt={editingDebt} onUpdate={handleUpdate} onClose={() => setEditingDebt(null)} />}
                 </div>
             );
