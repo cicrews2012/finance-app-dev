@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker v1.11.25.1</title>
-    <!-- Build: 2026-01-13-02 - Fixed CSV export function passing -->
+    <title>Finance Tracker v1.11.26</title>
+    <!-- Build: 2026-01-15-01 - Added paid off debts feature + CSV formula fix -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -766,7 +766,7 @@
                 const csvRows = [];
                 
                 // === TRANSACTIONS SECTION ===
-                csvRows.push(['=== TRANSACTIONS ===']);
+                csvRows.push(['"=== TRANSACTIONS ==="']); // Quote to prevent Excel formula error
                 csvRows.push([
                     'Date',
                     'Type',
@@ -820,9 +820,9 @@
                     ].join(','));
                 });
                 
-                // === DEBTS SECTION ===
+                // === ACTIVE DEBTS SECTION ===
                 csvRows.push(['']); // Empty line
-                csvRows.push(['=== DEBTS ===']);
+                csvRows.push(['"=== ACTIVE DEBTS ==="']); // Quote to prevent Excel formula error
                 csvRows.push([
                     'Name',
                     'Category',
@@ -834,7 +834,10 @@
                     'Progress (%)'
                 ].join(','));
                 
-                debts.forEach(d => {
+                const activeDebts = debts.filter(d => !d.paidOff);
+                const paidOffDebts = debts.filter(d => d.paidOff);
+                
+                activeDebts.forEach(d => {
                     const progressPercent = d.originalBalance > 0 ? 
                         ((d.originalBalance - d.currentBalance) / d.originalBalance * 100).toFixed(2) : 
                         0;
@@ -851,9 +854,32 @@
                     ].join(','));
                 });
                 
+                // === PAID OFF DEBTS SECTION ===
+                if (paidOffDebts.length > 0) {
+                    csvRows.push(['']); // Empty line
+                    csvRows.push(['"=== PAID OFF DEBTS ==="']); // Quote to prevent Excel formula error
+                    csvRows.push([
+                        'Name',
+                        'Category',
+                        'Original Balance',
+                        'Paid Off Date',
+                        'Monthly Payment (Freed Up)'
+                    ].join(','));
+                    
+                    paidOffDebts.forEach(d => {
+                        csvRows.push([
+                            `"${d.name.replace(/"/g, '""')}"`,
+                            d.category || '',
+                            d.originalBalance.toFixed(2),
+                            d.paidOffDate || 'Unknown',
+                            d.minimumPayment.toFixed(2)
+                        ].join(','));
+                    });
+                }
+                
                 // === RECURRING PAYMENTS SECTION ===
                 csvRows.push(['']); // Empty line
-                csvRows.push(['=== RECURRING PAYMENTS ===']);
+                csvRows.push(['"=== RECURRING PAYMENTS ==="']); // Quote to prevent Excel formula error
                 csvRows.push([
                     'Name',
                     'Amount',
@@ -882,7 +908,7 @@
                 
                 // === SUMMARY SECTION ===
                 csvRows.push(['']); // Empty line
-                csvRows.push(['=== SUMMARY ===']);
+                csvRows.push(['"=== SUMMARY ==="']); // Quote to prevent Excel formula error
                 
                 const totalIncome = transactions
                     .filter(t => t.type === 'income')
@@ -892,20 +918,29 @@
                     .filter(t => t.type === 'expense')
                     .reduce((sum, t) => sum + parseFloat(t.amount), 0);
                 
-                const totalDebt = debts.reduce((sum, d) => sum + parseFloat(d.currentBalance), 0);
+                const totalDebt = debts.filter(d => !d.paidOff).reduce((sum, d) => sum + parseFloat(d.currentBalance), 0);
                 
-                const totalMonthlyDebtPayments = debts.reduce((sum, d) => 
+                const totalMonthlyDebtPayments = debts.filter(d => !d.paidOff).reduce((sum, d) => 
                     sum + parseFloat(d.minimumPayment || 0), 0);
                 
                 const totalMonthlyRecurring = recurringPayments.reduce((sum, p) => 
                     sum + parseFloat(p.amount), 0);
                 
+                const paidOffDebtsCount = debts.filter(d => d.paidOff).length;
+                const totalDebtEliminated = debts.filter(d => d.paidOff).reduce((sum, d) => 
+                    sum + parseFloat(d.originalBalance || 0), 0);
+                const moneyFreedUp = debts.filter(d => d.paidOff).reduce((sum, d) => 
+                    sum + parseFloat(d.minimumPayment || 0), 0);
+                
                 csvRows.push(['Total Income', totalIncome.toFixed(2)]);
                 csvRows.push(['Total Expenses', totalExpenses.toFixed(2)]);
                 csvRows.push(['Net', (totalIncome - totalExpenses).toFixed(2)]);
-                csvRows.push(['Total Debt Balance', totalDebt.toFixed(2)]);
-                csvRows.push(['Monthly Debt Payments', totalMonthlyDebtPayments.toFixed(2)]);
+                csvRows.push(['Active Debt Balance', totalDebt.toFixed(2)]);
+                csvRows.push(['Monthly Debt Payments (Active)', totalMonthlyDebtPayments.toFixed(2)]);
                 csvRows.push(['Monthly Recurring Payments', totalMonthlyRecurring.toFixed(2)]);
+                csvRows.push(['Paid Off Debts Count', paidOffDebtsCount]);
+                csvRows.push(['Total Debt Eliminated', totalDebtEliminated.toFixed(2)]);
+                csvRows.push(['Money Freed Up (Monthly)', moneyFreedUp.toFixed(2)]);
                 csvRows.push(['Transaction Count', transactions.length]);
                 csvRows.push(['Export Date', new Date().toISOString()]);
                 
@@ -1035,7 +1070,7 @@
                 <div className="app-container">
                     <div className="header">
                         <h1>💰 Finance Tracker</h1>
-                        <div className="version">v1.11.25.1 | CSV Export Fixed</div>
+                        <div className="version">v1.11.26 | Paid Off Debts Victory!</div>
                     </div>
                     <div className="tab-navigation">
                         <button className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</button>
@@ -2614,6 +2649,19 @@
             const [formData, setFormData] = useState({ name: '', originalBalance: '', currentBalance: '', interestRate: '', minimumPayment: '', category: 'Credit Card', dueDay: '', createRecurring: false, autoPayRecurring: false });
             const [expandedDebt, setExpandedDebt] = useState(null);
             const [editingDebt, setEditingDebt] = useState(null);
+            const [expandedPaidOffSection, setExpandedPaidOffSection] = useState(false);
+            
+            const archiveDebt = (id) => {
+                const debt = debts.find(d => d.id === id);
+                if (debt && confirm(`🎉 Archive "${debt.name}" as PAID OFF?`)) {
+                    const updatedDebt = {
+                        ...debt,
+                        paidOff: true,
+                        paidOffDate: new Date().toISOString().split('T')[0] // YYYY-MM-DD
+                    };
+                    setDebts(debts.map(d => d.id === id ? updatedDebt : d));
+                }
+            };
             
             const handleSubmit = (e) => { 
                 e.preventDefault(); 
@@ -2660,13 +2708,19 @@
             const calculatePayoffMonths = (debt) => { if (debt.minimumPayment <= 0 || debt.currentBalance <= 0) return 'N/A'; const monthlyRate = (debt.interestRate / 100) / 12; let balance = debt.currentBalance; let months = 0; while (balance > 0 && months < 600) { const interest = balance * monthlyRate; const principal = debt.minimumPayment - interest; if (principal <= 0) return '∞ (payment < interest)'; balance -= principal; months++; } return months; };
             const formatPayoffDate = (months) => { if (months === 'N/A' || typeof months === 'string') return months; const today = new Date(); const payoffDate = new Date(today.getFullYear(), today.getMonth() + months, today.getDate()); return payoffDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); };
 
+            // Separate active and paid off debts
+            const activeDebts = debts.filter(d => !d.paidOff);
+            const paidOffDebts = debts.filter(d => d.paidOff);
+            const totalDebtEliminated = paidOffDebts.reduce((sum, d) => sum + parseFloat(d.originalBalance || 0), 0);
+            const moneyFreedUp = paidOffDebts.reduce((sum, d) => sum + parseFloat(d.minimumPayment || 0), 0);
+
             return (
                 <div>
-                    {debts.length > 0 && (
+                    {activeDebts.length > 0 && (
                         <div className="section" style={{background: 'linear-gradient(135deg, #dc354522 0%, #c92a2a22 100%)', border: '2px solid #dc3545'}}>
                             <h2 style={{color: '#dc3545', marginBottom: '20px'}}>💸 Debt Overview</h2>
                             <div className="debt-overview-grid">
-                                {debts.map(debt => {
+                                {activeDebts.map(debt => {
                                     const originalBalance = parseFloat(debt.originalBalance) || 0;
                                     const currentBalance = parseFloat(debt.currentBalance) || 0;
                                     const interestRate = parseFloat(debt.interestRate) || 0;
@@ -2756,23 +2810,24 @@
                         </form>
                     </div>
                     <div className="section">
-                        <h2>Active Debts ({debts.length})</h2>
+                        <h2>Active Debts ({activeDebts.length})</h2>
                         <div style={{display: 'flex', gap: '30px', marginBottom: '15px', fontSize: '1.1em', flexWrap: 'wrap'}}>
                             <p style={{color: '#a0aec0', margin: 0}}>
-                                Total Debt: <strong style={{color: '#dc3545'}}>{formatCurrency(debts.reduce((sum, d) => sum + parseFloat(d.currentBalance), 0))}</strong>
+                                Total Debt: <strong style={{color: '#dc3545'}}>{formatCurrency(activeDebts.reduce((sum, d) => sum + parseFloat(d.currentBalance), 0))}</strong>
                             </p>
                             <p style={{color: '#a0aec0', margin: 0}}>
-                                Monthly Payments: <strong style={{color: '#ffc107'}}>{formatCurrency(debts.reduce((sum, d) => sum + parseFloat(d.minimumPayment || 0), 0))}</strong>
+                                Monthly Payments: <strong style={{color: '#ffc107'}}>{formatCurrency(activeDebts.reduce((sum, d) => sum + parseFloat(d.minimumPayment || 0), 0))}</strong>
                             </p>
                         </div>
                         <div className="debt-list">
-                            {debts.length === 0 ? (
-                                <p style={{color: '#a0aec0', textAlign: 'center', padding: '20px'}}>No debts tracked yet.</p>
+                            {activeDebts.length === 0 ? (
+                                <p style={{color: '#a0aec0', textAlign: 'center', padding: '20px'}}>No active debts.</p>
                             ) : (
-                                debts.map((debt) => {
+                                activeDebts.map((debt) => {
                                     const payoffMonths = calculatePayoffMonths(debt);
                                     const payoffDate = formatPayoffDate(payoffMonths);
                                     const progressPercent = debt.originalBalance > 0 ? ((debt.originalBalance - debt.currentBalance) / debt.originalBalance * 100) : 0;
+                                    const canArchive = debt.currentBalance === 0 || Math.abs(debt.currentBalance) < 0.01;
                                     return (
                                         <div key={debt.id} className="collapsible-section">
                                             <div className="collapsible-header" onClick={() => setExpandedDebt(expandedDebt === debt.id ? null : debt.id)}>
@@ -2824,7 +2879,15 @@
                                                             </div>
                                                         </div>
                                                     )}
-                                                    <div style={{marginTop: '20px', display: 'flex', gap: '10px'}}>
+                                                    <div style={{marginTop: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
+                                                        {canArchive && (
+                                                            <button 
+                                                                onClick={() => archiveDebt(debt.id)}
+                                                                style={{background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)', fontWeight: 'bold'}}
+                                                            >
+                                                                🎉 Archive as Paid Off
+                                                            </button>
+                                                        )}
                                                         <button onClick={() => handleEdit(debt)}>Edit Debt</button>
                                                         <button className="danger" onClick={() => deleteDebt(debt.id)}>Delete Debt</button>
                                                     </div>
@@ -2836,6 +2899,69 @@
                             )}
                         </div>
                     </div>
+                    {paidOffDebts.length > 0 && (
+                        <div className="section" style={{background: 'linear-gradient(135deg, #28a74522 0%, #20c99722 100%)', border: '2px solid #28a745'}}>
+                            <div 
+                                className="collapsible-header" 
+                                onClick={() => setExpandedPaidOffSection(!expandedPaidOffSection)}
+                                style={{cursor: 'pointer', padding: '20px', borderRadius: '10px', background: '#1a1f2e'}}
+                            >
+                                <div>
+                                    <h2 style={{color: '#28a745', margin: 0}}>✅ Paid Off Debts ({paidOffDebts.length})</h2>
+                                    <div style={{display: 'flex', gap: '30px', marginTop: '10px', fontSize: '1em', flexWrap: 'wrap'}}>
+                                        <p style={{color: '#a0aec0', margin: 0}}>
+                                            Total Debt Eliminated: <strong style={{color: '#28a745'}}>{formatCurrency(totalDebtEliminated)}</strong>
+                                        </p>
+                                        <p style={{color: '#a0aec0', margin: 0}}>
+                                            Money Freed Up: <strong style={{color: '#ffc107'}}>{formatCurrency(moneyFreedUp)}/month</strong>
+                                        </p>
+                                    </div>
+                                </div>
+                                <div style={{fontSize: '1.5em'}}>{expandedPaidOffSection ? '▼' : '▶'}</div>
+                            </div>
+                            {expandedPaidOffSection && (
+                                <div style={{marginTop: '20px'}}>
+                                    <div className="debt-list">
+                                        {paidOffDebts.map((debt) => (
+                                            <div key={debt.id} className="collapsible-section" style={{borderColor: '#28a745'}}>
+                                                <div style={{padding: '20px', background: '#1a1f2e', borderRadius: '10px'}}>
+                                                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '15px'}}>
+                                                        <div>
+                                                            <h3 style={{color: '#28a745', margin: 0, marginBottom: '5px'}}>✅ {debt.name}</h3>
+                                                            <p style={{fontSize: '0.9em', color: '#a0aec0', margin: 0}}>{debt.category}</p>
+                                                        </div>
+                                                        <div style={{textAlign: 'right'}}>
+                                                            <div style={{fontSize: '1.2em', color: '#28a745', fontWeight: 'bold'}}>PAID OFF</div>
+                                                            <div style={{fontSize: '0.85em', color: '#a0aec0', marginTop: '3px'}}>
+                                                                {debt.paidOffDate ? new Date(debt.paidOffDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Recently'}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px', marginTop: '15px'}}>
+                                                        <div>
+                                                            <div style={{color: '#a0aec0', fontSize: '0.85em', marginBottom: '5px'}}>Original Balance</div>
+                                                            <div style={{color: '#e2e8f0', fontWeight: '600'}}>{formatCurrency(debt.originalBalance)}</div>
+                                                        </div>
+                                                        <div>
+                                                            <div style={{color: '#a0aec0', fontSize: '0.85em', marginBottom: '5px'}}>Monthly Payment Freed</div>
+                                                            <div style={{color: '#ffc107', fontWeight: '600'}}>{formatCurrency(debt.minimumPayment)}</div>
+                                                        </div>
+                                                    </div>
+                                                    <div style={{marginTop: '15px'}}>
+                                                        <div className="progress-bar"><div className="progress-fill" style={{width: '100%', background: '#28a745'}}></div></div>
+                                                        <div style={{textAlign: 'center', marginTop: '8px', color: '#28a745', fontSize: '0.9em', fontWeight: '600'}}>100% Complete! 🎉</div>
+                                                    </div>
+                                                    <div style={{marginTop: '15px', display: 'flex', gap: '10px'}}>
+                                                        <button className="danger" onClick={() => deleteDebt(debt.id)} style={{fontSize: '0.9em'}}>Delete from History</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
                     {editingDebt && <EditDebtModal debt={editingDebt} onUpdate={handleUpdate} onClose={() => setEditingDebt(null)} />}
                 </div>
             );
